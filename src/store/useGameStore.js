@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { handAuthoredLevels } from '../data/levels';
 
 // Helper to shuffle an array
 const shuffleArray = (arr) => {
@@ -9,6 +10,21 @@ const shuffleArray = (arr) => {
     [result[i], result[j]] = [result[j], result[i]];
   }
   return result;
+};
+
+// Helper to get top sequence of identical coins
+const getTopSequence = (coins) => {
+  if (coins.length === 0) return [];
+  const topVal = coins[coins.length - 1];
+  const seq = [];
+  for (let i = coins.length - 1; i >= 0; i--) {
+    if (coins[i] === topVal) {
+      seq.push(coins[i]);
+    } else {
+      break;
+    }
+  }
+  return seq;
 };
 
 // Coin merge chain: 1 -> 2 -> 3 -> 5 -> 8 -> 10 -> 13 -> 15
@@ -28,6 +44,24 @@ export const useGameStore = create(
       undoStack: [],
       isAnimating: false,
       mergeEffects: [], // Array of slot indices that recently merged
+      lastClaimedDate: null, // Date string (e.g. "Mon Jun 22 2026") or null
+
+      // Level goal state
+      goalType: 8,
+      goalAmount: 5,
+      goalCollected: 0,
+
+      // Helper to calculate goal progress
+      updateGoalProgress: (currentSlots) => {
+        const { goalType, goalAmount } = get();
+        const goalCollected = currentSlots.reduce(
+          (acc, slot) => acc + slot.coins.filter((c) => c === goalType).length,
+          0
+        );
+        const levelProgress = Math.min(100, Math.round((goalCollected / goalAmount) * 100));
+        const isWon = goalCollected >= goalAmount;
+        return { goalCollected, levelProgress, isWon };
+      },
 
       // Initialize level
       initLevel: (level) => {
@@ -77,6 +111,26 @@ export const useGameStore = create(
             coins: [],
           };
         });
+
+        // Determine level goals from data or dynamically
+        let goalType = 8;
+        let goalAmount = 5;
+        const levelData = handAuthoredLevels[level];
+        if (levelData && levelData.goal) {
+          goalType = levelData.goal.type;
+          goalAmount = levelData.goal.amount;
+        } else {
+          if (level === 2) {
+            goalType = 10;
+            goalAmount = 5;
+          } else if (level === 3) {
+            goalType = 13;
+            goalAmount = 5;
+          } else {
+            goalType = 15;
+            goalAmount = 5 + (level - 4) * 2;
+          }
+        }
 
         // Determine coin pool for sorting
         let coinPool = [];
@@ -131,12 +185,22 @@ export const useGameStore = create(
           }
         }
 
+        const initialGoalCollected = newSlots.reduce(
+          (acc, slot) => acc + slot.coins.filter((c) => c === goalType).length,
+          0
+        );
+        const initialProgress = Math.min(100, Math.round((initialGoalCollected / goalAmount) * 100));
+        const initialIsWon = initialGoalCollected >= goalAmount;
+
         set({
           currentLevel: level,
           slots: newSlots,
           selectedSlot: null,
-          levelProgress: 0,
-          isWon: false,
+          goalType,
+          goalAmount,
+          goalCollected: initialGoalCollected,
+          levelProgress: initialProgress,
+          isWon: initialIsWon,
           isGameOver: false,
           undoStack: [],
           isAnimating: false,
@@ -235,21 +299,6 @@ export const useGameStore = create(
         const sourceSlot = slots[selectedSlot];
         const targetSlot = slots[index];
 
-        // Helper to get top sequence of identical coins
-        const getTopSequence = (coins) => {
-          if (coins.length === 0) return [];
-          const topVal = coins[coins.length - 1];
-          const seq = [];
-          for (let i = coins.length - 1; i >= 0; i--) {
-            if (coins[i] === topVal) {
-              seq.push(coins[i]);
-            } else {
-              break;
-            }
-          }
-          return seq;
-        };
-
         const movingCoins = getTopSequence(sourceSlot.coins);
         if (movingCoins.length === 0) {
           set({ selectedSlot: null });
@@ -260,10 +309,27 @@ export const useGameStore = create(
 
         // Check transfer validity:
         // - Target slot must be empty OR top coin matches the moving coin value
-        // - Target slot capacity (10 coins) must not be exceeded
         const targetTopVal = targetSlot.coins.length > 0 ? targetSlot.coins[targetSlot.coins.length - 1] : null;
         const canMove = targetSlot.coins.length === 0 || targetTopVal === coinVal;
-        const fits = targetSlot.coins.length + movingCoins.length <= 10;
+        
+        let fits = false;
+        if (canMove) {
+          const targetTopSeq = getTopSequence(targetSlot.coins);
+          const targetTopSeqLength = targetTopSeq.length;
+          const totalMergingValCount = targetTopSeqLength + movingCoins.length;
+
+          if (targetTopSeqLength > 0 && totalMergingValCount >= 10) {
+            // They will merge! Calculate final slot size:
+            // (coins in slot) - (those being merged) + (2 new upgraded coins)
+            const chainIdx = MERGE_CHAIN.indexOf(coinVal);
+            const nextVal = chainIdx !== -1 && chainIdx < MERGE_CHAIN.length - 1 ? MERGE_CHAIN[chainIdx + 1] : null;
+            const finalSize = targetSlot.coins.length - targetTopSeqLength + (nextVal ? 2 : 0);
+            fits = finalSize <= 10;
+          } else {
+            // No merge. Simple capacity check:
+            fits = targetSlot.coins.length + movingCoins.length <= 10;
+          }
+        }
 
         if (canMove && fits) {
           // Capture current slots state for undo
@@ -302,62 +368,60 @@ export const useGameStore = create(
         }
       },
 
-      // Check if 10 coins of the same value are grouped in a slot
+      // Check if 10 or more coins of the same value are grouped at the top of a slot
       checkMerges: (index) => {
-        const { slots, score, coins, levelProgress, currentLevel } = get();
+        const { slots, score, coins } = get();
         const slot = slots[index];
 
-        // Verify if we have 10 coins of the same value
-        if (slot.coins.length === 10) {
-          const coinVal = slot.coins[0];
-          const allSame = slot.coins.every((v) => v === coinVal);
+        const topSeq = getTopSequence(slot.coins);
+        if (topSeq.length >= 10) {
+          const coinVal = topSeq[0];
+          // Find next value in the chain
+          const chainIdx = MERGE_CHAIN.indexOf(coinVal);
+          const nextVal = chainIdx !== -1 && chainIdx < MERGE_CHAIN.length - 1 ? MERGE_CHAIN[chainIdx + 1] : null;
 
-          if (allSame) {
-            // Find next value in the chain
-            const chainIdx = MERGE_CHAIN.indexOf(coinVal);
-            const nextVal = chainIdx !== -1 && chainIdx < MERGE_CHAIN.length - 1 ? MERGE_CHAIN[chainIdx + 1] : null;
+          set({ isAnimating: true });
+          
+          // Trigger merge animation delay
+          setTimeout(() => {
+            const currentSlots = get().slots;
+            const updatedSlots = currentSlots.map((s, idx) => {
+              if (idx === index) {
+                // Replace the merged coins with 2 coins of the next level (or clear if it's max tier)
+                const underlyingCoins = s.coins.slice(0, s.coins.length - topSeq.length);
+                const newCoins = nextVal ? [...underlyingCoins, nextVal, nextVal] : underlyingCoins;
+                return {
+                  ...s,
+                  coins: newCoins,
+                };
+              }
+              return s;
+            });
 
-            set({ isAnimating: true });
-            
-            // Trigger merge animation delay
+            // Recalculate level progress based on goal type & amount
+            const progress = get().updateGoalProgress(updatedSlots);
+
+            set({
+              slots: updatedSlots,
+              score: score + 100,
+              coins: coins + 50,
+              goalCollected: progress.goalCollected,
+              levelProgress: progress.levelProgress,
+              isWon: progress.isWon,
+              isAnimating: false,
+              mergeEffects: [...get().mergeEffects, index],
+            });
+
+            // Clear merge effects after animation
             setTimeout(() => {
-              const currentSlots = get().slots;
-              const updatedSlots = currentSlots.map((s, idx) => {
-                if (idx === index) {
-                  // Replace 10 coins with 1 coin of the next level (or clear if it's max tier)
-                  return {
-                    ...s,
-                    coins: nextVal ? [nextVal] : [],
-                  };
-                }
-                return s;
-              });
+              set((state) => ({
+                mergeEffects: state.mergeEffects.filter((idx) => idx !== index),
+              }));
+            }, 800);
 
-              // Level completion adds +15% per merge
-              const progressIncrement = 25; // 4 merges to complete level
-              const newProgress = Math.min(100, levelProgress + progressIncrement);
-              const reachedWin = newProgress >= 100;
-
-              set({
-                slots: updatedSlots,
-                score: score + 100,
-                coins: coins + 50,
-                levelProgress: newProgress,
-                isWon: reachedWin,
-                isAnimating: false,
-                mergeEffects: [...get().mergeEffects, index],
-              });
-
-              // Clear merge effects after animation
-              setTimeout(() => {
-                set((state) => ({
-                  mergeEffects: state.mergeEffects.filter((idx) => idx !== index),
-                }));
-              }, 800);
-
-              get().verifyGameOver();
-            }, 400);
-          }
+            // Re-check for chain reactions in this slot
+            get().checkMerges(index);
+          }, 400);
         } else {
           get().verifyGameOver();
         }
@@ -406,12 +470,17 @@ export const useGameStore = create(
         const previousSlots = undoStack[undoStack.length - 1];
         const newUndoStack = undoStack.slice(0, -1);
 
+        const progress = get().updateGoalProgress(previousSlots);
+
         set({
           coins: coins - 20,
           slots: previousSlots,
           undoStack: newUndoStack,
           selectedSlot: null,
           isGameOver: false,
+          goalCollected: progress.goalCollected,
+          levelProgress: progress.levelProgress,
+          isWon: progress.isWon,
         });
       },
 
@@ -454,12 +523,17 @@ export const useGameStore = create(
           });
         }
 
+        const progress = get().updateGoalProgress(updatedSlots);
+
         set({
           coins: coins - 30,
           slots: updatedSlots,
           selectedSlot: null,
           undoStack: [], // Clear undo since shuffle is irreversible
           isGameOver: false,
+          goalCollected: progress.goalCollected,
+          levelProgress: progress.levelProgress,
+          isWon: progress.isWon,
         });
       },
 
@@ -486,13 +560,102 @@ export const useGameStore = create(
         const previousSlots = slots.map((s) => ({ ...s, coins: [...s.coins] }));
         const newUndoStack = [...get().undoStack, previousSlots];
 
+        const progress = get().updateGoalProgress(updatedSlots);
+
         set({
           coins: coins - 40,
           slots: updatedSlots,
           selectedSlot: null,
           undoStack: newUndoStack,
           isGameOver: false,
+          goalCollected: progress.goalCollected,
+          levelProgress: progress.levelProgress,
+          isWon: progress.isWon,
         });
+      },
+
+      // Helper to add coins (e.g., daily rewards)
+      addCoins: (amount) => {
+        set((state) => ({ coins: state.coins + amount }));
+      },
+
+      // Claims daily reward: adds 50 coins if not claimed today
+      dealCoins: () => {
+        const { slots, currentLevel, isWon, isGameOver, isAnimating } = get();
+        if (isWon || isGameOver || isAnimating) return;
+
+        // Check if there is space to deal
+        const hasSpace = slots.some((s) => s.status === 'unlocked' && s.coins.length < 10);
+        if (!hasSpace) return;
+
+        // Determine active values based on level
+        let activeValues = [1, 2, 3];
+        if (currentLevel === 1) activeValues = [1, 2, 3, 5];
+        else if (currentLevel === 2) activeValues = [1, 2, 3, 5];
+        else if (currentLevel === 3) activeValues = [2, 3, 5, 8];
+        else if (currentLevel === 4) activeValues = [3, 5, 8, 10];
+        else {
+          const offset = Math.min(currentLevel - 4, MERGE_CHAIN.length - 4);
+          activeValues = MERGE_CHAIN.slice(offset, offset + 4);
+        }
+
+        // Capture previous slot states for undo
+        const previousSlots = slots.map((s) => ({ ...s, coins: [...s.coins] }));
+        const newUndoStack = [...get().undoStack, previousSlots];
+
+        // Deal 2 random coins (or up to capacity) to each unlocked slot with space
+        let dealtAny = false;
+        const updatedSlots = slots.map((s) => {
+          if (s.status === 'unlocked' && s.coins.length < 10) {
+            const spaceLeft = 10 - s.coins.length;
+            const dealCount = Math.min(2, spaceLeft);
+            if (dealCount > 0) {
+              dealtAny = true;
+              const newCoins = [...s.coins];
+              for (let i = 0; i < dealCount; i++) {
+                const randVal = activeValues[Math.floor(Math.random() * activeValues.length)];
+                newCoins.push(randVal);
+              }
+              return { ...s, coins: newCoins };
+            }
+          }
+          return s;
+        });
+
+        if (dealtAny) {
+          // Recalculate goal progress
+          const progress = get().updateGoalProgress(updatedSlots);
+
+          set({
+            slots: updatedSlots,
+            undoStack: newUndoStack,
+            selectedSlot: null,
+            goalCollected: progress.goalCollected,
+            levelProgress: progress.levelProgress,
+            isWon: progress.isWon,
+          });
+
+          // Check if any slot has 10 or more identical coins at the top to trigger a merge
+          updatedSlots.forEach((s) => {
+            if (s.status === 'unlocked') {
+              const topSeq = getTopSequence(s.coins);
+              if (topSeq.length >= 10) {
+                get().checkMerges(s.index);
+              }
+            }
+          });
+        }
+      },
+
+      claimDailyReward: () => {
+        const todayStr = new Date().toDateString();
+        const { lastClaimedDate } = get();
+        if (lastClaimedDate === todayStr) {
+          return false;
+        }
+        set({ lastClaimedDate: todayStr });
+        get().addCoins(50);
+        return true;
       }
     }),
     {

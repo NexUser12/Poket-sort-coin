@@ -16,53 +16,53 @@ export const BoosterBar = () => {
   const canClearSlot = selectedSlot !== null && coins >= 40 && !isWon && !isGameOver;
 
   return (
-    <div className="w-full flex justify-around gap-3 p-4 bg-[#230f06]/95 border-t-4 border-[#140803] rounded-t-2xl shadow-[0_-5px_15px_rgba(0,0,0,0.5)] select-none">
+    <div className="w-full flex justify-around gap-3 p-4 bg-[#1f0d05] border-t-8 border-[#130702] rounded-t-3xl shadow-[0_-8px_20px_rgba(0,0,0,0.7)] select-none">
       {/* Undo Booster */}
       <button
         onClick={useUndo}
         disabled={!canUndo}
-        className={`flex-1 py-2.5 px-1 rounded-xl flex flex-col items-center justify-center transition-all duration-75
+        className={`flex-1 py-2.5 px-1 rounded-2xl flex flex-col items-center justify-center transition-all duration-75
           ${
             canUndo
-              ? 'btn-blue-3d text-white font-bold cursor-pointer'
-              : 'bg-blue-950/20 text-blue-900 border border-blue-950/40 cursor-not-allowed'
+              ? 'btn-blue-3d text-white font-black cursor-pointer'
+              : 'bg-[#150a04]/60 text-slate-600 border-2 border-[#2b170f]/50 cursor-not-allowed opacity-50'
           }`}
       >
-        <span className="text-xl">↩️</span>
-        <span className="text-[10px] font-black mt-1 uppercase tracking-wider">UNDO</span>
-        <span className="text-[9px] font-black text-yellow-400 mt-0.5">🪙 20</span>
+        <span className="text-xl filter drop-shadow-md">↩️</span>
+        <span className="text-[10px] font-black mt-1 uppercase tracking-wider text-stroke-brown">UNDO</span>
+        <span className="text-[9px] font-black text-yellow-400 mt-0.5 text-stroke-brown">🪙 20</span>
       </button>
 
       {/* Shuffle Booster */}
       <button
         onClick={useShuffle}
         disabled={!canShuffle}
-        className={`flex-1 py-2.5 px-1 rounded-xl flex flex-col items-center justify-center transition-all duration-75
+        className={`flex-1 py-2.5 px-1 rounded-2xl flex flex-col items-center justify-center transition-all duration-75
           ${
             canShuffle
-              ? 'btn-wood-3d text-white font-bold cursor-pointer'
-              : 'bg-amber-950/20 text-amber-900 border border-amber-950/40 cursor-not-allowed'
+              ? 'btn-wood-3d text-white font-black cursor-pointer'
+              : 'bg-[#150a04]/60 text-slate-600 border-2 border-[#2b170f]/50 cursor-not-allowed opacity-50'
           }`}
       >
-        <span className="text-xl">🔀</span>
-        <span className="text-[10px] font-black mt-1 uppercase tracking-wider">SHUFFLE</span>
-        <span className="text-[9px] font-black text-yellow-400 mt-0.5">🪙 30</span>
+        <span className="text-xl filter drop-shadow-md">🔀</span>
+        <span className="text-[10px] font-black mt-1 uppercase tracking-wider text-stroke-brown">SHUFFLE</span>
+        <span className="text-[9px] font-black text-yellow-400 mt-0.5 text-stroke-brown">🪙 30</span>
       </button>
 
       {/* Clear Top Booster */}
       <button
         onClick={useClearSlot}
         disabled={!canClearSlot}
-        className={`flex-1 py-2.5 px-1 rounded-xl flex flex-col items-center justify-center transition-all duration-75
+        className={`flex-1 py-2.5 px-1 rounded-2xl flex flex-col items-center justify-center transition-all duration-75
           ${
             canClearSlot
-              ? 'btn-green-3d text-white font-bold cursor-pointer'
-              : 'bg-emerald-950/20 text-emerald-900 border border-emerald-950/40 cursor-not-allowed'
+              ? 'btn-green-3d text-white font-black cursor-pointer'
+              : 'bg-[#150a04]/60 text-slate-600 border-2 border-[#2b170f]/50 cursor-not-allowed opacity-50'
           }`}
       >
-        <span className="text-xl">🗑️</span>
-        <span className="text-[10px] font-black mt-1 uppercase tracking-wider text-center leading-none">CLEAR SLOT</span>
-        <span className="text-[9px] font-black text-yellow-400 mt-0.5">🪙 40</span>
+        <span className="text-xl filter drop-shadow-md">🗑️</span>
+        <span className="text-[10px] font-black mt-1 uppercase tracking-wider text-center leading-none text-stroke-brown">CLEAR SLOT</span>
+        <span className="text-[9px] font-black text-yellow-400 mt-0.5 text-stroke-brown">🪙 40</span>
       </button>
     </div>
   );

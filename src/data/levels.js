@@ -1,6 +1,7 @@
 export const handAuthoredLevels = {
   1: {
     categories: ['fruits', 'animals'],
+    goal: { type: 8, amount: 5 },
     tiles: [
       { categoryId: 'fruits', name: 'Apple', icon: '🍎' },
       { categoryId: 'fruits', name: 'Banana', icon: '🍌' },
@@ -12,6 +13,7 @@ export const handAuthoredLevels = {
   },
   2: {
     categories: ['fruits', 'animals', 'vehicles'],
+    goal: { type: 10, amount: 5 },
     tiles: [
       { categoryId: 'fruits', name: 'Apple', icon: '🍎' },
       { categoryId: 'fruits', name: 'Banana', icon: '🍌' },
@@ -26,6 +28,7 @@ export const handAuthoredLevels = {
   },
   3: {
     categories: ['fruits', 'animals', 'vehicles', 'sports'],
+    goal: { type: 13, amount: 5 },
     tiles: [
       { categoryId: 'fruits', name: 'Apple', icon: '🍎' },
       { categoryId: 'fruits', name: 'Banana', icon: '🍌' },

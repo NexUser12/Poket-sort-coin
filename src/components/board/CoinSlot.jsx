@@ -36,11 +36,40 @@ export const CoinSlot = ({ slotIndex }) => {
   const currentLevel = useGameStore((state) => state.currentLevel);
   const undoStack = useGameStore((state) => state.undoStack) || [];
 
+  const [prevStatus, setPrevStatus] = React.useState(slot?.status || 'locked');
+  const [showUnlockWipe, setShowUnlockWipe] = React.useState(false);
+
+  React.useEffect(() => {
+    if (slot && prevStatus === 'locked' && slot.status === 'unlocked') {
+      setShowUnlockWipe(true);
+      const timer = setTimeout(() => setShowUnlockWipe(false), 600);
+      return () => clearTimeout(timer);
+    }
+    if (slot) {
+      setPrevStatus(slot.status);
+    }
+  }, [slot?.status, prevStatus]);
+
   if (!slot) return null;
 
   const isSelected = selectedSlot === slotIndex;
   const isMerging = mergeEffects.includes(slotIndex);
   const totalCoins = slot.coins.length;
+
+  // Generate particles if merging
+  const particles = React.useMemo(() => {
+    if (!isMerging) return [];
+    return Array.from({ length: 10 }).map((_, idx) => {
+      const angle = (idx / 10) * 2 * Math.PI + (Math.random() - 0.5) * 0.3;
+      const distance = 40 + Math.random() * 45; // 40px to 85px
+      return {
+        tx: `${Math.cos(angle) * distance}px`,
+        ty: `${Math.sin(angle) * distance}px`,
+        delay: `${Math.random() * 0.1}s`,
+        char: Math.random() > 0.5 ? '⭐' : '✨',
+      };
+    });
+  }, [isMerging]);
 
   // Identify top sequence of identical coins to lift them when selected
   const getTopSequenceLength = (coins) => {
@@ -78,36 +107,47 @@ export const CoinSlot = ({ slotIndex }) => {
 
   // Render Locked Slot Overlay
   if (slot.status === 'locked') {
+    const isFree = slot.unlockType === 'free';
+    const isTimer = slot.unlockType === 'timer';
+    
     return (
       <div
         onClick={() => selectSlot(slotIndex)}
-        className="relative aspect-[1/2.4] w-full min-h-[140px] rounded-2xl cursor-pointer slot-carved slot-carved-locked flex flex-col justify-between items-center p-2 border-2 border-dashed border-yellow-950 hover:border-amber-700/60 transition-all duration-200"
+        className={`relative aspect-[1/2.4] w-full min-h-[140px] rounded-2xl cursor-pointer slot-carved slot-carved-locked flex flex-col justify-between items-center p-2 transition-all duration-200
+          ${isFree ? 'slot-locked-free border-emerald-500' : ''}
+          ${isTimer ? 'slot-locked-timer border-orange-500' : ''}
+          ${!isFree && !isTimer ? 'border-yellow-950/60' : ''}
+          hover:scale-[1.02]`}
       >
         <div className="flex-1 flex flex-col justify-center items-center gap-2">
           {/* Padlock Icon */}
-          <div className="w-10 h-10 rounded-full bg-yellow-950/80 border-2 border-amber-500/30 flex items-center justify-center text-lg shadow-inner">
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg shadow-md border-2
+            ${isFree ? 'bg-emerald-950/90 border-emerald-500/50 text-emerald-400' : ''}
+            ${isTimer ? 'bg-orange-950/90 border-orange-500/50 text-orange-400' : ''}
+            ${!isFree && !isTimer ? 'bg-yellow-950/90 border-amber-500/30 text-yellow-500' : ''}`}
+          >
             🔒
           </div>
           
           {/* Specific lock information */}
           {slot.unlockType === 'free' && (
-            <span className="text-[10px] font-black tracking-widest text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded-full border border-emerald-500/30 animate-pulse">
+            <span className="text-[10px] font-black tracking-widest text-emerald-400 bg-emerald-950/90 px-2 py-0.5 rounded-full border border-emerald-500/40 animate-pulse shadow-sm">
               FREE
             </span>
           )}
 
           {slot.unlockType === 'timer' && (
             <div className="flex flex-col items-center gap-1">
-              <span className="text-[9px] font-black tracking-wider text-orange-400 bg-orange-950/80 px-1.5 py-0.5 rounded-full border border-orange-500/20">
+              <span className="text-[9px] font-black tracking-wider text-orange-400 bg-orange-950/90 px-1.5 py-0.5 rounded-full border border-orange-500/30 shadow-sm">
                 ⏰ {slot.timerStarted ? `${slot.unlockTimer}s` : '60 SEC'}
               </span>
               {!slot.timerStarted && (
-                <span className="text-[8px] text-gray-500 font-bold uppercase mt-0.5">
+                <span className="text-[8px] text-orange-300/70 font-bold uppercase mt-0.5 tracking-wider">
                   Tap to Start
                 </span>
               )}
               {slot.timerStarted && (
-                <span className="text-[8px] text-yellow-500 bg-yellow-950/60 px-1 py-0.5 rounded font-black border border-yellow-600/20">
+                <span className="text-[8px] text-yellow-400 bg-yellow-950/80 px-1 py-0.5 rounded font-black border border-yellow-600/30 shadow-sm">
                   🪙 {slot.unlockCost} NOW
                 </span>
               )}
@@ -115,7 +155,7 @@ export const CoinSlot = ({ slotIndex }) => {
           )}
 
           {slot.unlockType === 'coins' && (
-            <span className="text-[10px] font-black tracking-wider text-yellow-400 bg-yellow-950/80 px-1.5 py-0.5 rounded-full border border-yellow-500/20 flex items-center gap-0.5 shadow-sm">
+            <span className="text-[10px] font-black tracking-wider text-yellow-400 bg-yellow-950/90 px-1.5 py-0.5 rounded-full border border-yellow-500/30 flex items-center gap-0.5 shadow-sm">
               🪙 {slot.unlockCost}
             </span>
           )}
@@ -129,27 +169,51 @@ export const CoinSlot = ({ slotIndex }) => {
   return (
     <div
       onClick={() => selectSlot(slotIndex)}
-      className={`relative aspect-[1/2.4] w-full min-h-[140px] rounded-2xl cursor-pointer slot-carved flex flex-col justify-between items-center py-2 transition-all duration-200
+      className={`relative aspect-[1/2.4] w-full min-h-[140px] rounded-2xl cursor-pointer slot-carved flex flex-col justify-between items-center py-2 transition-all duration-200 overflow-hidden
         ${isSelected ? 'slot-carved-selected scale-[1.03]' : 'hover:border-amber-900/60 hover:shadow-lg'}`}
     >
+      {/* Wipe Sweep VFX */}
+      {showUnlockWipe && <div className="unlock-wipe-effect"></div>}
+
+      {/* Spark particles on merge */}
+      {isMerging && particles.map((p, idx) => (
+        <span
+          key={idx}
+          className="spark-particle text-yellow-400"
+          style={{
+            '--tx': p.tx,
+            '--ty': p.ty,
+            left: '50%',
+            top: '45%',
+            marginLeft: '-7px',
+            marginTop: '-7px',
+            animationDelay: p.delay,
+          }}
+        >
+          {p.char}
+        </span>
+      ))}
+
       {/* Capacity Counter */}
-      <div className="text-[9px] font-black text-amber-500/70 bg-black/60 px-1.5 py-0.5 rounded-full z-20 border border-amber-950/30">
+      <div className="text-[9px] font-black text-amber-500/80 bg-black/70 px-1.5 py-0.5 rounded-full z-20 border border-amber-950/40">
         <span className={totalCoins >= 10 ? 'text-red-500 font-black animate-pulse' : 'text-amber-400'}>
           {totalCoins}
         </span>
         /10
       </div>
 
-      {/* Coin Stack Container */}
-      <div className="flex-1 w-full flex flex-col-reverse justify-start items-center pt-8 pb-1 relative">
-        {slot.coins.map((coinVal, idx) => {
-          const isTopSeq = idx >= totalCoins - topSeqLength;
+      {/* Coin Stack Container — coins render from back (top of slot) to front (bottom of slot) */}
+      <div className="flex-1 w-full flex flex-col justify-end items-center pb-1 relative">
+        {/* Reverse the array: last in coins[] = top of stack = rendered first = sits at bottom of slot */}
+        {[...slot.coins].reverse().map((coinVal, visualIdx) => {
+          const realIdx = totalCoins - 1 - visualIdx;
+          const isTopSeq = realIdx >= totalCoins - topSeqLength;
           return (
             <div
-              key={idx}
+              key={realIdx}
               style={{
-                marginTop: idx > 0 ? '-22px' : '0px',
-                zIndex: totalCoins - idx + 5,
+                marginTop: visualIdx > 0 ? '-12px' : '0px',
+                zIndex: totalCoins - visualIdx + 5,
               }}
               className="transition-all duration-200"
             >
@@ -157,7 +221,7 @@ export const CoinSlot = ({ slotIndex }) => {
                 value={coinVal}
                 isLifted={isTopSeq && isSelected}
                 isMerging={isMerging}
-                showNumber={idx === 0}
+                showNumber={visualIdx === 0}
               />
             </div>
           );
@@ -165,8 +229,8 @@ export const CoinSlot = ({ slotIndex }) => {
 
         {/* Empty Slot Indicator */}
         {totalCoins === 0 && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-20 z-10">
-            <span className="text-[8px] font-black tracking-widest text-amber-900 uppercase rotate-90 scale-90">
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-25 z-10">
+            <span className="text-[8px] font-black tracking-widest text-amber-900/80 uppercase rotate-90 scale-90">
               EMPTY
             </span>
           </div>
@@ -174,7 +238,7 @@ export const CoinSlot = ({ slotIndex }) => {
       </div>
 
       {/* Carved recess base shadow */}
-      <div className="w-10 h-1.5 bg-black/55 rounded-full filter blur-[1px] border border-yellow-950/30 shadow-inner z-0"></div>
+      <div className="w-10 h-1.5 bg-black/60 rounded-full filter blur-[1px] border border-yellow-950/40 shadow-inner z-0"></div>
       
       {hasPointer && <HandPointer />}
     </div>

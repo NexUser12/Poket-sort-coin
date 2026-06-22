@@ -13,6 +13,10 @@ export const GameBoard = () => {
   const tickTimers = useGameStore((state) => state.tickTimers);
   const currentLevel = useGameStore((state) => state.currentLevel);
   const undoStack = useGameStore((state) => state.undoStack) || [];
+  const dealCoins = useGameStore((state) => state.dealCoins);
+  const isAnimating = useGameStore((state) => state.isAnimating);
+
+  const canDeal = slots.some((s) => s.status === 'unlocked' && s.coins.length < 10) && !isWon && !isGameOver && !isAnimating;
 
   const [settingsOpen, setSettingsOpen] = useState(false);
 
@@ -61,27 +65,43 @@ export const GameBoard = () => {
         )}
       </div>
 
+      {/* Deal Button */}
+      <div className="w-full flex justify-center -mt-2 z-20">
+        <button
+          onClick={dealCoins}
+          disabled={!canDeal}
+          className={`w-full max-w-xs py-3.5 rounded-2xl font-black text-sm uppercase tracking-wider shadow-lg flex items-center justify-center gap-2 transition-all duration-75
+            ${
+              canDeal
+                ? 'btn-green-3d text-white cursor-pointer'
+                : 'bg-[#150a04]/60 text-slate-600 border-2 border-[#2b170f]/50 cursor-not-allowed opacity-50'
+            }`}
+        >
+          <span>🃏</span> DEAL COINS
+        </button>
+      </div>
+
       {/* Floating Settings Button in bottom right */}
       <button
         onClick={() => setSettingsOpen(true)}
-        className="absolute bottom-2.5 right-4 w-13 h-13 bg-sky-500 hover:bg-sky-400 border-4 border-white rounded-full flex items-center justify-center text-xl shadow-[0_5px_12px_rgba(0,0,0,0.6)] cursor-pointer active:translate-y-0.5 transition-all z-30"
+        className="absolute bottom-2.5 right-4 w-12 h-12 rounded-full flex items-center justify-center text-xl btn-gear-themed z-30"
       >
         ⚙️
       </button>
 
       {/* Settings Modal Overlay */}
       {settingsOpen && (
-        <div className="absolute inset-0 bg-black/75 backdrop-blur-xs z-50 flex items-center justify-center p-6 rounded-3xl text-center">
+        <div className="absolute inset-0 bg-black/80 backdrop-blur-xs z-50 flex items-center justify-center p-6 rounded-3xl text-center animate-fade-in">
           <div className="settings-wood-modal max-w-xs w-full p-6 text-white flex flex-col gap-4 shadow-2xl">
-            <h2 className="text-xl font-black text-yellow-400 uppercase tracking-widest text-shadow-md">SETTINGS</h2>
-            <p className="text-xs text-amber-200/70">Need a fresh start? Modify your game below.</p>
-            <div className="flex flex-col gap-2.5 mt-2">
+            <h2 className="text-2xl font-black text-yellow-400 uppercase tracking-widest text-stroke-brown">SETTINGS</h2>
+            <p className="text-xs text-amber-200/80 font-semibold uppercase tracking-wider">Need a fresh start? Modify your game below.</p>
+            <div className="flex flex-col gap-3 mt-2">
               <button
                 onClick={() => {
                   resetLevel();
                   setSettingsOpen(false);
                 }}
-                className="btn-wood-3d py-2.5 text-xs font-black uppercase text-white rounded-xl"
+                className="btn-wood-3d py-3 text-xs font-black uppercase text-white rounded-2xl"
               >
                 RESET LEVEL
               </button>
@@ -90,13 +110,13 @@ export const GameBoard = () => {
                   initLevel(1);
                   setSettingsOpen(false);
                 }}
-                className="btn-blue-3d py-2.5 text-xs font-black uppercase text-white rounded-xl"
+                className="btn-blue-3d py-3 text-xs font-black uppercase text-white rounded-2xl"
               >
                 RESTART GAME (Lvl 1)
               </button>
               <button
                 onClick={() => setSettingsOpen(false)}
-                className="btn-green-3d py-2.5 text-xs font-black uppercase text-white rounded-xl"
+                className="btn-green-3d py-3 text-xs font-black uppercase text-white rounded-2xl"
               >
                 RESUME PLAY
               </button>
@@ -107,25 +127,25 @@ export const GameBoard = () => {
 
       {/* Win Modal Overlay */}
       {isWon && (
-        <div className="absolute inset-0 bg-black/80 backdrop-blur-xs z-50 flex items-center justify-center p-6 rounded-3xl text-center">
-          <div className="settings-wood-modal max-w-xs w-full p-6 text-white flex flex-col items-center gap-3 border-4 border-yellow-500 shadow-[0_0_40px_rgba(245,158,11,0.5)]">
-            <span className="text-5xl animate-bounce">🏆</span>
-            <h2 className="text-2xl font-black text-yellow-400 uppercase tracking-widest text-shadow-md mt-1">
+        <div className="absolute inset-0 bg-black/85 backdrop-blur-xs z-50 flex items-center justify-center p-6 rounded-3xl text-center">
+          <div className="settings-wood-modal max-w-xs w-full p-6 text-white flex flex-col items-center gap-3 border-4 border-yellow-500 shadow-[0_0_50px_rgba(245,158,11,0.6)]">
+            <span className="text-6xl animate-bounce filter drop-shadow-md">🏆</span>
+            <h2 className="text-3xl font-black text-yellow-400 uppercase tracking-widest text-stroke-brown mt-1">
               LEVEL CLEAR!
             </h2>
-            <p className="text-xs text-amber-100/80 mb-4">
+            <p className="text-xs text-amber-100/90 font-bold uppercase tracking-wider mb-3">
               Awesome job! You successfully merged the coin stacks.
             </p>
-            <div className="flex flex-col gap-2.5 w-full">
+            <div className="flex flex-col gap-3 w-full">
               <button
                 onClick={nextLevel}
-                className="w-full py-3 btn-green-3d text-white font-black rounded-xl tracking-wider text-sm"
+                className="w-full py-3.5 btn-green-3d text-white font-black rounded-2xl tracking-wider text-sm"
               >
                 NEXT LEVEL
               </button>
               <button
                 onClick={resetLevel}
-                className="w-full py-2 btn-wood-3d text-amber-200 font-bold text-xs rounded-xl"
+                className="w-full py-2.5 btn-wood-3d text-amber-200 font-black text-xs rounded-2xl"
               >
                 REPLAY LEVEL
               </button>
@@ -136,18 +156,18 @@ export const GameBoard = () => {
 
       {/* Game Over Modal Overlay */}
       {isGameOver && (
-        <div className="absolute inset-0 bg-black/80 backdrop-blur-xs z-50 flex items-center justify-center p-6 rounded-3xl text-center">
-          <div className="settings-wood-modal max-w-xs w-full p-6 text-white flex flex-col items-center gap-3 border-4 border-red-800 shadow-[0_0_40px_rgba(220,38,38,0.4)]">
-            <span className="text-5xl">💀</span>
-            <h2 className="text-2xl font-black text-red-500 uppercase tracking-widest text-shadow-md mt-1">
+        <div className="absolute inset-0 bg-black/85 backdrop-blur-xs z-50 flex items-center justify-center p-6 rounded-3xl text-center">
+          <div className="settings-wood-modal max-w-xs w-full p-6 text-white flex flex-col items-center gap-3 border-4 border-red-700 shadow-[0_0_50px_rgba(220,38,38,0.5)]">
+            <span className="text-6xl animate-pulse filter drop-shadow-md">💀</span>
+            <h2 className="text-3xl font-black text-red-500 uppercase tracking-widest text-stroke-brown mt-1">
               OUT OF MOVES!
             </h2>
-            <p className="text-xs text-amber-100/70 mb-4">
+            <p className="text-xs text-amber-100/90 font-bold uppercase tracking-wider mb-3">
               All slots are locked or full, with no valid moves left.
             </p>
             <button
               onClick={resetLevel}
-              className="w-full py-3 btn-wood-3d text-white font-black rounded-xl tracking-wider text-sm"
+              className="w-full py-3.5 btn-wood-3d text-white font-black rounded-2xl tracking-wider text-sm"
             >
               TRY AGAIN
             </button>
