@@ -148,8 +148,8 @@ export const CoinSlot = ({ slotIndex }) => {
             <div
               key={idx}
               style={{
-                marginTop: idx > 0 ? '-34px' : '0px',
-                zIndex: idx + 5,
+                marginTop: idx > 0 ? '-22px' : '0px',
+                zIndex: totalCoins - idx + 5,
               }}
               className="transition-all duration-200"
             >
@@ -157,6 +157,7 @@ export const CoinSlot = ({ slotIndex }) => {
                 value={coinVal}
                 isLifted={isTopSeq && isSelected}
                 isMerging={isMerging}
+                showNumber={idx === 0}
               />
             </div>
           );
