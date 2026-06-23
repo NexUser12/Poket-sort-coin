@@ -154,11 +154,6 @@ export const CoinSlot = ({ slotIndex }) => {
             </div>
           )}
 
-          {slot.unlockType === 'coins' && (
-            <span className="text-[10px] font-black tracking-wider text-yellow-400 bg-yellow-950/90 px-1.5 py-0.5 rounded-full border border-yellow-500/30 flex items-center gap-0.5 shadow-sm">
-              🪙 {slot.unlockCost}
-            </span>
-          )}
         </div>
         {hasPointer && <HandPointer />}
       </div>

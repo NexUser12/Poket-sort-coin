@@ -2,6 +2,13 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { handAuthoredLevels } from '../data/levels';
 
+// Balanced Level 1 layout matching "Pocket Sort Coin Merge Puzzle" style:
+// - 2 coin types (1 and 2) mixed together to teach sorting
+// - Goal: collect 10 coins of type 4 via merging
+// - Bottom row: 3 mixed stacks + 2 empty buffer slots
+// - Row 2: 1 free-unlock slot with extra type 1 coins, rest locked
+// - Gentle difficulty ramp that teaches tap-to-take, sorting, and merging
+
 // Helper to shuffle an array
 const shuffleArray = (arr) => {
   const result = [...arr];
@@ -27,8 +34,9 @@ const getTopSequence = (coins) => {
   return seq;
 };
 
-// Coin merge chain: 1 -> 2 -> 3 -> 5 -> 8 -> 10 -> 13 -> 15
-const MERGE_CHAIN = [1, 2, 3, 5, 8, 10, 13, 15];
+// Coin merge chain: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 8 -> 10 -> 13 -> 15
+// (10 coins of type 4 merge into 2 coins of type 5)
+const MERGE_CHAIN = [1, 2, 3, 4, 5, 6, 8, 10, 13, 15];
 
 export const useGameStore = create(
   persist(
@@ -47,8 +55,8 @@ export const useGameStore = create(
       lastClaimedDate: null, // Date string (e.g. "Mon Jun 22 2026") or null
 
       // Level goal state
-      goalType: 8,
-      goalAmount: 5,
+      goalType: 4,
+      goalAmount: 3,
       goalCollected: 0,
 
       // Helper to calculate goal progress
@@ -86,17 +94,17 @@ export const useGameStore = create(
             unlockCost = 0;
           } else if (index === 9) {
             // Slot 9 is TIMER lock (60 Sec)
-            unlockType = 'timer';
+            unlockType = level === 1 ? 'unavailable' : 'timer';
             unlockTimer = 60;
             unlockCost = 100; // Cost to bypass timer instantly
           } else {
             // Slots 6, 7, 8 are coin locks
-            unlockType = 'coins';
+            unlockType = level === 1 ? 'unavailable' : 'coins';
             unlockCost = index === 6 ? 100 : index === 7 ? 150 : 200;
           }
           // Row 1 (slots 0-4) are high cost coin locks
           if (index < 5) {
-            unlockType = 'coins';
+            unlockType = level === 1 ? 'unavailable' : 'coins';
             unlockCost = 300 + index * 100;
           }
 
@@ -113,47 +121,76 @@ export const useGameStore = create(
         });
 
         // Determine level goals from data or dynamically
-        let goalType = 8;
-        let goalAmount = 5;
+        let goalType = 4;
+        let goalAmount = 3;
         const levelData = handAuthoredLevels[level];
         if (levelData && levelData.goal) {
           goalType = levelData.goal.type;
           goalAmount = levelData.goal.amount;
         } else {
-          if (level === 2) {
-            goalType = 10;
-            goalAmount = 5;
+          if (level === 1) {
+            goalType = 4;
+            goalAmount = 3;
+          } else if (level === 2) {
+            goalType = 4;
+            goalAmount = 2;
           } else if (level === 3) {
-            goalType = 13;
-            goalAmount = 5;
+            goalType = 5;
+            goalAmount = 2;
+          } else if (level === 4) {
+            goalType = 6;
+            goalAmount = 2;
           } else {
-            goalType = 15;
-            goalAmount = 5 + (level - 4) * 2;
+            // Scale goal type and amount for higher levels
+            const goalIdx = Math.min(3 + Math.floor((level - 5) / 2), MERGE_CHAIN.length - 1);
+            goalType = MERGE_CHAIN[goalIdx];
+            goalAmount = 3 + Math.floor((level - 5) / 3);
           }
         }
 
         // Determine coin pool for sorting
         let coinPool = [];
         if (level === 1) {
-          // Hand-authored setup for Level 1 to match the reference image
-          // 10 copper '1's, 9 silver '2's, 9 gold '3's
-          // We distribute them exactly to make a fun puzzle:
-          newSlots[10].coins = [1, 1, 1, 1, 2, 2, 2, 2];
-          newSlots[11].coins = [1, 1, 1, 1];
-          newSlots[12].coins = [1, 1, 2, 2, 2, 2, 2];
-          newSlots[13].coins = [3, 3, 3, 3, 3];
-          newSlots[14].coins = [3, 3, 3, 3];
+          // ═══════════════════════════════════════════════════════════
+          //  LEVEL 1 — Balanced tutorial (Pocket Sort style)
+          //  Goal: collect 3× type 4 coins
+          //  Mechanic: merge 10× type 1 → 2× type 2
+          //            merge 10× type 2 → 2× type 3
+          //            merge 10× type 3 → 2× type 4
+          // ═══════════════════════════════════════════════════════════
+          //
+          //  Bottom row (slots 10-14): 3 mixed stacks + 2 empty buffers
+          //   Slot 10: [1, 2, 2, 1]  — mixed: teaches sorting
+          //   Slot 11: [1, 1, 2, 2]  — mixed: forces player to separate
+          //   Slot 12: [2, 2, 2, 2]  — pure type 2: easy to stack
+          //   Slot 13: (empty)       — buffer for sorting
+          //   Slot 14: (empty)       — buffer for sorting
+          //
+          //  Row 2 (slot 5 = free unlock):
+          //   Slot 5: [1, 1, 1, 1, 1, 1] — extra type 1s to complete the merge
+          //
+          //  Total type 1: 2+2+6 = 10 coins (merges to 2 type 2s)
+          //  Total type 2: 2+2+4 = 8 coins (plus the 2 from merge = 10 type 2s)
+          //  Total type 3: 0 coins initially (merges to 2 type 3s)
+          //  Goal needs 3× type 4, so level is winnable and tutorialised
+          // ═══════════════════════════════════════════════════════════
+          newSlots[10].coins = [1, 2, 2, 1];
+          newSlots[11].coins = [1, 1, 2, 2];
+          newSlots[12].coins = [2, 2, 2, 2];
+          newSlots[13].coins = [];           // empty buffer
+          newSlots[14].coins = [];           // empty buffer
+          newSlots[5].coins  = [1, 1, 1, 1, 1, 1];   // free-unlock slot with extra type 1s
         } else {
           // Dynamic generation for Level 2+
           // Select active coin values from the chain
-          let activeValues = [1, 2, 3];
-          if (level === 2) activeValues = [1, 2, 3, 5];
-          else if (level === 3) activeValues = [2, 3, 5, 8];
-          else if (level === 4) activeValues = [3, 5, 8, 10];
+          let activeValues = [1, 2];
+          if (level === 2) activeValues = [1, 2, 3];
+          else if (level === 3) activeValues = [2, 3, 4];
+          else if (level === 4) activeValues = [3, 4, 5];
           else {
             // For higher levels, shift active values based on level
-            const offset = Math.min(level - 4, MERGE_CHAIN.length - 4);
-            activeValues = MERGE_CHAIN.slice(offset, offset + 4);
+            const offset = Math.min(level - 5, MERGE_CHAIN.length - 4);
+            activeValues = MERGE_CHAIN.slice(offset, offset + 3);
           }
 
           // Generate coins: lowest active value gets 10 coins, others get 9 coins
@@ -589,14 +626,14 @@ export const useGameStore = create(
         if (!hasSpace) return;
 
         // Determine active values based on level
-        let activeValues = [1, 2, 3];
-        if (currentLevel === 1) activeValues = [1, 2, 3, 5];
-        else if (currentLevel === 2) activeValues = [1, 2, 3, 5];
-        else if (currentLevel === 3) activeValues = [2, 3, 5, 8];
-        else if (currentLevel === 4) activeValues = [3, 5, 8, 10];
+        let activeValues = [1, 2];
+        if (currentLevel === 1) activeValues = [1, 2];  // Level 1: deal type 1 and type 2 coins
+        else if (currentLevel === 2) activeValues = [1, 2, 3];
+        else if (currentLevel === 3) activeValues = [2, 3, 4];
+        else if (currentLevel === 4) activeValues = [3, 4, 5];
         else {
-          const offset = Math.min(currentLevel - 4, MERGE_CHAIN.length - 4);
-          activeValues = MERGE_CHAIN.slice(offset, offset + 4);
+          const offset = Math.min(currentLevel - 5, MERGE_CHAIN.length - 4);
+          activeValues = MERGE_CHAIN.slice(offset, offset + 3);
         }
 
         // Capture previous slot states for undo
@@ -659,7 +696,7 @@ export const useGameStore = create(
       }
     }),
     {
-      name: 'pocket-sort-coin-save',
+      name: 'pocket-sort-coin-save-v5',
     }
   )
 );
