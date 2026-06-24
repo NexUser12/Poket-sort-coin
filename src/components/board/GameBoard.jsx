@@ -47,22 +47,48 @@ export const GameBoard = () => {
   return (
     <main className="w-full max-w-md mx-auto px-4 py-4 flex-1 flex flex-col justify-center items-center gap-6 relative">
       
-      {/* 3x5 Wooden Board */}
-      <div className="wood-board w-full p-4.5 flex flex-col justify-center relative select-none">
-        
-        {/* Carved recess grid background */}
-        <div className="grid grid-cols-5 gap-x-2 gap-y-3.5 w-full">
-          {slots.map((_, idx) => (
-            <CoinSlot key={idx} slotIndex={idx} />
-          ))}
-        </div>
+      {/* 3D Perspective Container for Camera Angle */}
+      <div className="perspective-container">
+        {/* 3x5 Wooden Board */}
+        <div className="wood-board w-full py-6 px-4 flex flex-col justify-center relative select-none">
+          
+          {/* Staggered Honeycomb Grid Rows */}
+          <div className="flex flex-col w-full relative z-10">
+            {/* Row 0 (slots 0-4) - Offset slightly to the right */}
+            <div className="flex justify-center gap-x-1.5 w-full translate-x-[16px] z-10">
+              {slots.slice(0, 5).map((s) => (
+                <div key={s.index} className="w-[18%] max-w-[70px]">
+                  <CoinSlot slotIndex={s.index} />
+                </div>
+              ))}
+            </div>
 
-        {/* Tutorial Banner Overlay */}
-        {isTutorialMode && tutorialMessage && (
-          <div className="absolute top-[48%] left-0 right-0 bg-black/85 border-y-3 border-amber-950/40 text-white font-black text-center py-2.5 z-40 text-base uppercase tracking-widest shadow-xl pointer-events-none select-none">
-            {tutorialMessage}
+            {/* Row 1 (slots 5-9) - Offset slightly to the left, nesting upward */}
+            <div className="flex justify-center gap-x-1.5 w-full -translate-x-[16px] mt-[-22px] z-20">
+              {slots.slice(5, 10).map((s) => (
+                <div key={s.index} className="w-[18%] max-w-[70px]">
+                  <CoinSlot slotIndex={s.index} />
+                </div>
+              ))}
+            </div>
+
+            {/* Row 2 (slots 10-14) - Offset slightly to the right, nesting upward */}
+            <div className="flex justify-center gap-x-1.5 w-full translate-x-[16px] mt-[-22px] z-30">
+              {slots.slice(10, 15).map((s) => (
+                <div key={s.index} className="w-[18%] max-w-[70px]">
+                  <CoinSlot slotIndex={s.index} />
+                </div>
+              ))}
+            </div>
           </div>
-        )}
+
+          {/* Tutorial Banner Overlay */}
+          {isTutorialMode && tutorialMessage && (
+            <div className="absolute top-[48%] left-0 right-0 bg-black/85 border-y-3 border-amber-950/40 text-white font-black text-center py-2.5 z-40 text-base uppercase tracking-widest shadow-xl pointer-events-none select-none">
+              {tutorialMessage}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Deal Button */}

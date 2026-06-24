@@ -23,6 +23,15 @@
 }
 
 /* ===== Wood Board Frame ===== */
+.perspective-container {
+  perspective: 1200px;
+  perspective-origin: 50% 25%;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
 .wood-board {
   /* Warm medium-dark chestnut brown with smooth subtle stylized wood grain lines */
   background: 
@@ -32,64 +41,49 @@
   background-blend-mode: multiply;
   border: 12px solid #2d1102;
   box-shadow: 
-    0 30px 60px -15px rgba(0, 0, 0, 0.95),
-    0 15px 30px rgba(0, 0, 0, 0.8),
+    0 40px 80px -15px rgba(0, 0, 0, 0.98),
+    0 20px 40px rgba(0, 0, 0, 0.85),
     inset 0 4px 0 rgba(255, 255, 255, 0.15),
     inset 0 -6px 0 rgba(0, 0, 0, 0.7);
   border-radius: 2.5rem;
   position: relative;
-  /* Semi-matte varnish: low metallic, medium roughness look */
+  transform: rotateX(23deg) rotateY(0deg) rotateZ(0deg);
+  transform-style: preserve-3d;
 }
 
 /* ===== Carved Slot Depth ===== */
 .slot-carved {
-  /* Deep chocolate brown providing a dark silhouette area */
-  background: linear-gradient(180deg, #180904 0%, #220e06 50%, #150803 100%);
-  box-shadow: 
-    inset 0 16px 24px rgba(0, 0, 0, 0.98),
-    inset 0 2px 4px rgba(0, 0, 0, 0.9),
-    0 2px 4px rgba(255, 255, 255, 0.04);
-  border: 3px solid #2f1305;
-  border-radius: 1.5rem;
+  position: relative;
   transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  overflow: hidden;
+  overflow: visible; /* Let coins overlap and float outside slot boundaries */
+  background: transparent;
 }
 
-.slot-carved-selected {
-  border-color: #f59e0b;
-  box-shadow: 
-    inset 0 16px 24px rgba(0, 0, 0, 0.98),
-    0 0 20px rgba(245, 158, 11, 0.6);
+.slot-hex-bg {
+  position: absolute;
+  inset: 0;
+  clip-path: polygon(50% 0%, 100% 15%, 100% 85%, 50% 100%, 0% 85%, 0% 15%);
+  z-index: 0;
 }
 
-/* Locked Slots - High contrast active/locked styling */
-.slot-carved-locked {
-  background: linear-gradient(180deg, #2b170f 0%, #1c0e08 100%);
-  box-shadow: 
-    inset 0 10px 16px rgba(0, 0, 0, 0.9),
-    0 4px 6px rgba(0, 0, 0, 0.5);
-  border: 2px solid #3c1e10;
+.slot-hex-bg-dark {
+  background: linear-gradient(180deg, #140703 0%, #1e0a04 50%, #110502 100%);
 }
 
-/* Bright green & orange slots */
-.slot-locked-free {
-  border-color: #22c55e !important;
-  box-shadow: 
-    inset 0 8px 12px rgba(0, 0, 0, 0.85),
-    0 0 12px rgba(34, 197, 94, 0.3);
+.slot-hex-bg-locked {
+  background: linear-gradient(180deg, #25120a 0%, #180904 100%);
 }
 
-.slot-locked-timer {
-  border-color: #f97316 !important;
-  box-shadow: 
-    inset 0 8px 12px rgba(0, 0, 0, 0.85),
-    0 0 12px rgba(249, 115, 22, 0.3);
+/* Dynamic glow values on SVG borders */
+.slot-svg-border {
+  transition: filter 0.25s ease;
 }
 
 /* Radial sweep sweep-wipe wipe effect for unlock */
 .unlock-wipe-effect {
   position: absolute;
   inset: 0;
+  clip-path: polygon(50% 0%, 100% 15%, 100% 85%, 50% 100%, 0% 85%, 0% 15%);
   background: radial-gradient(circle, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0) 70%);
   opacity: 0;
   pointer-events: none;
@@ -202,8 +196,8 @@
   z-index: 5;
   pointer-events: none;
   box-shadow: 
-    0 6px 12px rgba(0, 0, 0, 0.85),
-    0 2px 4px rgba(0, 0, 0, 0.6);
+    0 3px 5px rgba(0, 0, 0, 0.3),
+    0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 /* Inner face of the coin (embossed cavity) */
@@ -242,20 +236,20 @@
 
 /* TIER 1: Coral / Copper (Value 1) */
 .coin-face-1 {
-  background: radial-gradient(circle at 35% 30%, #ff8a65 0%, #ff5722 45%, #d84315 80%, #5e1900 100%);
+  background: radial-gradient(circle at 35% 30%, #ff8a65 0%, #ff5722 55%, #e64a19 85%, #9e2a00 100%);
   border: 2px solid #ffab91;
   color: #ffffff;
 }
 .coin-barrel-1 {
   background: 
-    repeating-linear-gradient(90deg, rgba(0,0,0,0.3) 0px, rgba(0,0,0,0.3) 1.5px, transparent 1.5px, transparent 3.5px),
-    linear-gradient(180deg, rgba(255,255,255,0.4) 0%, rgba(0,0,0,0.6) 100%),
-    #d84315;
+    repeating-linear-gradient(90deg, rgba(0,0,0,0.15) 0px, rgba(0,0,0,0.15) 1.5px, transparent 1.5px, transparent 3.5px),
+    linear-gradient(180deg, rgba(255,255,255,0.55) 0%, rgba(0,0,0,0.15) 100%),
+    #ff5722;
 }
 
 /* TIER 2: Platinum / Silver (Value 2) */
 .coin-face-2 {
-  background: radial-gradient(circle at 35% 30%, #ffffff 0%, #eceff1 30%, #b0bec5 65%, #455a64 100%);
+  background: radial-gradient(circle at 35% 30%, #ffffff 0%, #f5f7f8 35%, #cfd8dc 70%, #78909c 100%);
   border: 2px solid #ffffff;
   color: #263238;
   text-shadow: 
@@ -264,14 +258,14 @@
 }
 .coin-barrel-2 {
   background: 
-    repeating-linear-gradient(90deg, rgba(0,0,0,0.2) 0px, rgba(0,0,0,0.2) 1.5px, transparent 1.5px, transparent 3.5px),
-    linear-gradient(180deg, rgba(255,255,255,0.5) 0%, rgba(0,0,0,0.6) 100%),
-    #b0bec5;
+    repeating-linear-gradient(90deg, rgba(0,0,0,0.1) 0px, rgba(0,0,0,0.1) 1.5px, transparent 1.5px, transparent 3.5px),
+    linear-gradient(180deg, rgba(255,255,255,0.6) 0%, rgba(0,0,0,0.1) 100%),
+    #cfd8dc;
 }
 
 /* TIER 3: Golden Yellow (Value 3) */
 .coin-face-3 {
-  background: radial-gradient(circle at 35% 30%, #fffde7 0%, #ffd54f 35%, #ffb300 70%, #ff6f00 100%);
+  background: radial-gradient(circle at 35% 30%, #fffde7 0%, #ffe082 45%, #ffb300 80%, #ff8f00 100%);
   border: 2px solid #fff59d;
   color: #fffde7;
   text-shadow: 
@@ -281,92 +275,92 @@
 }
 .coin-barrel-3 {
   background: 
-    repeating-linear-gradient(90deg, rgba(0,0,0,0.3) 0px, rgba(0,0,0,0.3) 1.5px, transparent 1.5px, transparent 3.5px),
-    linear-gradient(180deg, rgba(255,255,255,0.5) 0%, rgba(0,0,0,0.6) 100%),
-    #ffb300;
+    repeating-linear-gradient(90deg, rgba(0,0,0,0.15) 0px, rgba(0,0,0,0.15) 1.5px, transparent 1.5px, transparent 3.5px),
+    linear-gradient(180deg, rgba(255,255,255,0.55) 0%, rgba(0,0,0,0.15) 100%),
+    #ffd54f;
 }
 
 /* TIER 3.5: Electric Cyan / Turquoise (Value 4) */
 .coin-face-4 {
-  background: radial-gradient(circle at 35% 30%, #e0f7fa 0%, #00e5ff 40%, #00b8d4 70%, #006064 100%);
+  background: radial-gradient(circle at 35% 30%, #e0f7fa 0%, #00e5ff 45%, #00bcd4 80%, #00838f 100%);
   border: 2px solid #80deea;
   color: #ffffff;
 }
 .coin-barrel-4 {
   background: 
-    repeating-linear-gradient(90deg, rgba(0,0,0,0.3) 0px, rgba(0,0,0,0.3) 1.5px, transparent 1.5px, transparent 3.5px),
-    linear-gradient(180deg, rgba(255,255,255,0.4) 0%, rgba(0,0,0,0.6) 100%),
-    #00b8d4;
+    repeating-linear-gradient(90deg, rgba(0,0,0,0.15) 0px, rgba(0,0,0,0.15) 1.5px, transparent 1.5px, transparent 3.5px),
+    linear-gradient(180deg, rgba(255,255,255,0.55) 0%, rgba(0,0,0,0.15) 100%),
+    #00e5ff;
 }
 
 /* TIER 4: Electric Metallic Blue (Value 5) */
 .coin-face-5 {
-  background: radial-gradient(circle at 35% 30%, #80d8ff 0%, #00b0ff 40%, #0091ea 70%, #0a1950 100%);
+  background: radial-gradient(circle at 35% 30%, #e3f2fd 0%, #40c4ff 45%, #0091ea 80%, #0d47a1 100%);
   border: 2px solid #b3e5fc;
   color: #ffffff;
 }
 .coin-barrel-5 {
   background: 
-    repeating-linear-gradient(90deg, rgba(0,0,0,0.3) 0px, rgba(0,0,0,0.3) 1.5px, transparent 1.5px, transparent 3.5px),
-    linear-gradient(180deg, rgba(255,255,255,0.4) 0%, rgba(0,0,0,0.6) 100%),
-    #0091ea;
+    repeating-linear-gradient(90deg, rgba(0,0,0,0.15) 0px, rgba(0,0,0,0.15) 1.5px, transparent 1.5px, transparent 3.5px),
+    linear-gradient(180deg, rgba(255,255,255,0.55) 0%, rgba(0,0,0,0.15) 100%),
+    #00b0ff;
 }
 
 /* TIER 4.5: Ruby Red (Value 6) */
 .coin-face-6 {
-  background: radial-gradient(circle at 35% 30%, #ff8a80 0%, #ff1744 40%, #d50000 70%, #5f0909 100%);
+  background: radial-gradient(circle at 35% 30%, #ff8a80 0%, #ff1744 45%, #d50000 80%, #9c0000 100%);
   border: 2px solid #ff8a80;
   color: #ffffff;
 }
 .coin-barrel-6 {
   background: 
-    repeating-linear-gradient(90deg, rgba(0,0,0,0.3) 0px, rgba(0,0,0,0.3) 1.5px, transparent 1.5px, transparent 3.5px),
-    linear-gradient(180deg, rgba(255,255,255,0.4) 0%, rgba(0,0,0,0.6) 100%),
-    #d50000;
+    repeating-linear-gradient(90deg, rgba(0,0,0,0.15) 0px, rgba(0,0,0,0.15) 1.5px, transparent 1.5px, transparent 3.5px),
+    linear-gradient(180deg, rgba(255,255,255,0.55) 0%, rgba(0,0,0,0.15) 100%),
+    #ff1744;
 }
 
 /* TIER 5: Bright Emerald / Lime (Value 8) */
 .coin-face-8 {
-  background: radial-gradient(circle at 35% 30%, #b9f6ca 0%, #00e676 40%, #00c853 70%, #004d40 100%);
+  background: radial-gradient(circle at 35% 30%, #b9f6ca 0%, #00e676 45%, #00c853 80%, #00701a 100%);
   border: 2px solid #ccff90;
   color: #ffffff;
 }
 .coin-barrel-8 {
   background: 
-    repeating-linear-gradient(90deg, rgba(0,0,0,0.3) 0px, rgba(0,0,0,0.3) 1.5px, transparent 1.5px, transparent 3.5px),
-    linear-gradient(180deg, rgba(255,255,255,0.4) 0%, rgba(0,0,0,0.6) 100%),
-    #00c853;
+    repeating-linear-gradient(90deg, rgba(0,0,0,0.15) 0px, rgba(0,0,0,0.15) 1.5px, transparent 1.5px, transparent 3.5px),
+    linear-gradient(180deg, rgba(255,255,255,0.55) 0%, rgba(0,0,0,0.15) 100%),
+    #00e676;
 }
 
 /* TIER 6: Amethyst Purple (Value 10) */
 .coin-face-10 {
-  background: radial-gradient(circle at 35% 30%, #ea80fc 0%, #d500f9 40%, #aa00ff 70%, #4a0072 100%);
+  background: radial-gradient(circle at 35% 30%, #ea80fc 0%, #d500f9 45%, #aa00ff 80%, #6a0080 100%);
   border: 2px solid #f3e5f5;
   color: #ffffff;
 }
 .coin-barrel-10 {
   background: 
-    repeating-linear-gradient(90deg, rgba(0,0,0,0.3) 0px, rgba(0,0,0,0.3) 1.5px, transparent 1.5px, transparent 3.5px),
-    linear-gradient(180deg, rgba(255,255,255,0.4) 0%, rgba(0,0,0,0.6) 100%),
-    #aa00ff;
+    repeating-linear-gradient(90deg, rgba(0,0,0,0.15) 0px, rgba(0,0,0,0.15) 1.5px, transparent 1.5px, transparent 3.5px),
+    linear-gradient(180deg, rgba(255,255,255,0.55) 0%, rgba(0,0,0,0.15) 100%),
+    #d500f9;
 }
 
 /* TIER 7: Saturated Coral Pink (Value 13) */
 .coin-face-13 {
-  background: radial-gradient(circle at 35% 30%, #ff80ab 0%, #ff4081 40%, #f50057 70%, #880e4f 100%);
+  background: radial-gradient(circle at 35% 30%, #ff80ab 0%, #ff4081 45%, #f50057 80%, #b0003a 100%);
   border: 2px solid #fce4ec;
   color: #ffffff;
 }
 .coin-barrel-13 {
   background: 
-    repeating-linear-gradient(90deg, rgba(0,0,0,0.3) 0px, rgba(0,0,0,0.3) 1.5px, transparent 1.5px, transparent 3.5px),
-    linear-gradient(180deg, rgba(255,255,255,0.4) 0%, rgba(0,0,0,0.6) 100%),
-    #f50057;
+    repeating-linear-gradient(90deg, rgba(0,0,0,0.15) 0px, rgba(0,0,0,0.15) 1.5px, transparent 1.5px, transparent 3.5px),
+    linear-gradient(180deg, rgba(255,255,255,0.55) 0%, rgba(0,0,0,0.15) 100%),
+    #ff4081;
 }
 
 /* TIER 8: Glowing Legendary Gold Aura (Value 15) */
 .coin-face-15 {
-  background: radial-gradient(circle at 35% 30%, #ffffff 0%, #ffff8d 25%, #ffea00 55%, #ffd600 80%, #ff6f00 100%);
+  background: radial-gradient(circle at 35% 30%, #ffffff 0%, #ffff8d 25%, #ffea00 55%, #ffd600 80%, #ff8f00 100%);
   border: 2px solid #ffffff;
   color: #ffffff;
   box-shadow: 
@@ -376,10 +370,10 @@
 }
 .coin-barrel-15 {
   background: 
-    repeating-linear-gradient(90deg, rgba(255,255,255,0.4) 0px, rgba(255,255,255,0.4) 1.5px, transparent 1.5px, transparent 3.5px),
-    linear-gradient(180deg, rgba(255,255,255,0.6) 0%, rgba(0,0,0,0.6) 100%),
-    #ffd600;
-  box-shadow: 0 0 15px rgba(255, 214, 0, 0.6);
+    repeating-linear-gradient(90deg, rgba(255,255,255,0.5) 0px, rgba(255,255,255,0.5) 1.5px, transparent 1.5px, transparent 3.5px),
+    linear-gradient(180deg, rgba(255,255,255,0.7) 0%, rgba(0,0,0,0.2) 100%),
+    #ffea00;
+  box-shadow: 0 0 15px rgba(255, 234, 0, 0.6);
 }
 
 /* ===== Selection / Float Floating Animation ===== */
