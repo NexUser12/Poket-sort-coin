@@ -32,7 +32,7 @@ export const CoinSlot = ({ slotIndex }) => {
   const slots = useGameStore((state) => state.slots) || [];
   const selectedSlot = useGameStore((state) => state.selectedSlot);
   const selectSlot = useGameStore((state) => state.selectSlot);
-  const mergeEffects = useGameStore((state) => state.mergeEffects) || [];
+  const mergeStates = useGameStore((state) => state.mergeStates) || {};
   const currentLevel = useGameStore((state) => state.currentLevel);
   const undoStack = useGameStore((state) => state.undoStack) || [];
 
@@ -75,7 +75,10 @@ export const CoinSlot = ({ slotIndex }) => {
   if (!slot) return null;
 
   const isSelected = selectedSlot === slotIndex;
-  const isMerging = mergeEffects.includes(slotIndex);
+  const mergeState = mergeStates[slotIndex];
+  const isMergingCollapse = mergeState?.phase === 'collapse';
+  const isMergingReveal = mergeState?.phase === 'reveal';
+  const isMerging = isMergingReveal;
   const totalCoins = slot.coins.length;
 
   // Generate particles if merging
@@ -325,22 +328,39 @@ export const CoinSlot = ({ slotIndex }) => {
             const realIdx = totalCoins - 1 - visualIdx;
             const bottomIdx = totalCoins - 1 - visualIdx;
             const isTopSeq = realIdx >= totalCoins - topSeqLength;
+
+            // Set default styles
+            let style = {
+              position: 'absolute',
+              bottom: `${bottomPadding + bottomIdx * dy}px`,
+              left: '50%',
+              transform: 'translateX(-50%)',
+              zIndex: totalCoins - visualIdx + 5,
+            };
+
+            // If this slot is currently in the collapse phase of a merge,
+            // we animate the top merging coins to collapse down to the bottom-most coin of the sequence.
+            if (isMergingCollapse && isTopSeq) {
+              const baseIdx = totalCoins - topSeqLength;
+              const offsetCount = bottomIdx - baseIdx;
+              style.transform = `translateX(-50%) translateY(${offsetCount * dy}px) scale(0)`;
+              style.transition = 'transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s ease-out';
+              style.opacity = 0;
+            }
+
+            // Determine if the coin is one of the newly revealed coins (which will pop in)
+            const isCoinRevealing = isMergingReveal && (realIdx >= totalCoins - (mergeState?.count || 0));
+
             return (
               <div
                 key={realIdx}
-                style={{
-                  position: 'absolute',
-                  bottom: `${bottomPadding + bottomIdx * dy}px`,
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  zIndex: totalCoins - visualIdx + 5,
-                }}
-                className="transition-all duration-200"
+                style={style}
+                className={isMergingCollapse && isTopSeq ? '' : 'transition-all duration-200'}
               >
                 <Coin
                   value={coinVal}
                   isLifted={isTopSeq && isSelected}
-                  isMerging={isMerging}
+                  isRevealing={isCoinRevealing}
                   showNumber={visualIdx === 0}
                 />
               </div>

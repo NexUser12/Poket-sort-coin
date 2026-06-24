@@ -51,7 +51,7 @@ export const useGameStore = create(
       isGameOver: false,
       undoStack: [],
       isAnimating: false,
-      mergeEffects: [], // Array of slot indices that recently merged
+      mergeStates: {}, // key: slotIndex, value: { phase: 'collapse' | 'reveal', count: number }
       lastClaimedDate: null, // Date string (e.g. "Mon Jun 22 2026") or null
 
       // Level goal state
@@ -241,7 +241,7 @@ export const useGameStore = create(
           isGameOver: false,
           undoStack: [],
           isAnimating: false,
-          mergeEffects: [],
+          mergeStates: {},
         });
       },
 
@@ -405,64 +405,80 @@ export const useGameStore = create(
         }
       },
 
-      // Check if 10 or more coins of the same value are grouped at the top of a slot
-      checkMerges: (index) => {
-        const { slots, score, coins } = get();
-        const slot = slots[index];
-
-        const topSeq = getTopSequence(slot.coins);
-        if (topSeq.length >= 10) {
-          const coinVal = topSeq[0];
-          // Find next value in the chain
-          const chainIdx = MERGE_CHAIN.indexOf(coinVal);
-          const nextVal = chainIdx !== -1 && chainIdx < MERGE_CHAIN.length - 1 ? MERGE_CHAIN[chainIdx + 1] : null;
-
-          set({ isAnimating: true });
-          
-          // Trigger merge animation delay
-          setTimeout(() => {
-            const currentSlots = get().slots;
-            const updatedSlots = currentSlots.map((s, idx) => {
-              if (idx === index) {
-                // Replace the merged coins with 2 coins of the next level (or clear if it's max tier)
-                const underlyingCoins = s.coins.slice(0, s.coins.length - topSeq.length);
-                const newCoins = nextVal ? [...underlyingCoins, nextVal, nextVal] : underlyingCoins;
-                return {
-                  ...s,
-                  coins: newCoins,
-                };
-              }
-              return s;
-            });
-
-            // Recalculate level progress based on goal type & amount
-            const progress = get().updateGoalProgress(updatedSlots);
-
-            set({
-              slots: updatedSlots,
-              score: score + 100,
-              coins: coins + 50,
-              goalCollected: progress.goalCollected,
-              levelProgress: progress.levelProgress,
-              isWon: progress.isWon,
-              isAnimating: false,
-              mergeEffects: [...get().mergeEffects, index],
-            });
-
-            // Clear merge effects after animation
-            setTimeout(() => {
-              set((state) => ({
-                mergeEffects: state.mergeEffects.filter((idx) => idx !== index),
-              }));
-            }, 800);
-
-            // Re-check for chain reactions in this slot
-            get().checkMerges(index);
-          }, 400);
-        } else {
-          get().verifyGameOver();
-        }
-      },
+       // Check if 10 or more coins of the same value are grouped at the top of a slot
+       checkMerges: (index) => {
+         const { slots, score, coins } = get();
+         const slot = slots[index];
+ 
+         const topSeq = getTopSequence(slot.coins);
+         if (topSeq.length >= 10) {
+           const coinVal = topSeq[0];
+           // Find next value in the chain
+           const chainIdx = MERGE_CHAIN.indexOf(coinVal);
+           const nextVal = chainIdx !== -1 && chainIdx < MERGE_CHAIN.length - 1 ? MERGE_CHAIN[chainIdx + 1] : null;
+ 
+           // Lock inputs and set mergeState to collapse phase
+           set((state) => ({
+             isAnimating: true,
+             mergeStates: {
+               ...state.mergeStates,
+               [index]: { phase: 'collapse', count: topSeq.length }
+             }
+           }));
+           
+           // Phase 1: Collapse animation runs for 400ms
+           setTimeout(() => {
+             const currentSlots = get().slots;
+             const updatedSlots = currentSlots.map((s, idx) => {
+               if (idx === index) {
+                 // Replace the merged coins with 2 coins of the next level (or clear if it's max tier)
+                 const underlyingCoins = s.coins.slice(0, s.coins.length - topSeq.length);
+                 const newCoins = nextVal ? [...underlyingCoins, nextVal, nextVal] : underlyingCoins;
+                 return {
+                   ...s,
+                   coins: newCoins,
+                 };
+               }
+               return s;
+             });
+ 
+             // Recalculate level progress based on goal type & amount
+             const progress = get().updateGoalProgress(updatedSlots);
+ 
+             // Set mergeState to reveal phase and update slots/score
+             set((state) => ({
+               slots: updatedSlots,
+               score: score + 100,
+               coins: coins + 50,
+               goalCollected: progress.goalCollected,
+               levelProgress: progress.levelProgress,
+               isWon: progress.isWon,
+               mergeStates: {
+                 ...state.mergeStates,
+                 [index]: { phase: 'reveal', count: nextVal ? 2 : 0 }
+               }
+             }));
+ 
+             // Phase 2: Reveal animation runs for 700ms
+             setTimeout(() => {
+               // Clean up mergeState for this slot and unlock input
+               set((state) => {
+                 const newMergeStates = { ...state.mergeStates };
+                 delete newMergeStates[index];
+                 return {
+                   mergeStates: newMergeStates,
+                   isAnimating: false,
+                 };
+               });
+ 
+               // Re-check for chain reactions in this slot
+               get().checkMerges(index);
+             }, 700);
+           }, 400);
+         } else {
+           get().verifyGameOver();
+         }
+       },
 
       // Verify if player is locked out of moves (all unlocked slots full, no matches can be made)
       verifyGameOver: () => {

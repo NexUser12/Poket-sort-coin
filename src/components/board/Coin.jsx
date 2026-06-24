@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 
-export const Coin = ({ value, isLifted, isMerging, showNumber }) => {
+export const Coin = ({ value, isLifted, isRevealing, showNumber }) => {
   const [shouldBounce, setShouldBounce] = useState(true);
 
   useEffect(() => {
@@ -13,11 +13,11 @@ export const Coin = ({ value, isLifted, isMerging, showNumber }) => {
     <div 
       className={`coin-3d 
         ${isLifted ? 'coin-lifted' : ''} 
-        ${isMerging ? 'merge-pop' : ''} 
+        ${isRevealing ? 'coin-reveal' : ''} 
         ${shouldBounce ? 'coin-placement-bounce' : ''}`}
     >
       {/* Specular sheen flash overlay when merging */}
-      {isMerging && <div className="merge-flash-specular"></div>}
+      {isRevealing && <div className="merge-flash-specular"></div>}
 
       {/* Cylindrical barrel (visible side thickness with ridges) */}
       <div className={`coin-3d-barrel coin-barrel-${value}`}></div>
