@@ -417,64 +417,84 @@ export const useGameStore = create(
            const chainIdx = MERGE_CHAIN.indexOf(coinVal);
            const nextVal = chainIdx !== -1 && chainIdx < MERGE_CHAIN.length - 1 ? MERGE_CHAIN[chainIdx + 1] : null;
  
-           // Lock inputs and set mergeState to collapse phase
+           // Lock inputs and set mergeState to delay phase (shows full stack for 500ms)
            set((state) => ({
              isAnimating: true,
              mergeStates: {
                ...state.mergeStates,
-               [index]: { phase: 'collapse', count: topSeq.length }
+               [index]: { phase: 'delay', count: topSeq.length }
              }
            }));
            
-           // Phase 1: Collapse animation runs for 400ms
+           // Delay: let the full stack be visible for 500ms
            setTimeout(() => {
-             const currentSlots = get().slots;
-             const updatedSlots = currentSlots.map((s, idx) => {
-               if (idx === index) {
-                 // Replace the merged coins with 2 coins of the next level (or clear if it's max tier)
-                 const underlyingCoins = s.coins.slice(0, s.coins.length - topSeq.length);
-                 const newCoins = nextVal ? [...underlyingCoins, nextVal, nextVal] : underlyingCoins;
-                 return {
-                   ...s,
-                   coins: newCoins,
-                 };
-               }
-               return s;
-             });
- 
-             // Recalculate level progress based on goal type & amount
-             const progress = get().updateGoalProgress(updatedSlots);
- 
-             // Set mergeState to reveal phase and update slots/score
+             const stateBeforeCollapse = get();
+             if (!stateBeforeCollapse.mergeStates[index] || stateBeforeCollapse.mergeStates[index].phase !== 'delay') return;
+
+             // Transition to collapse phase
              set((state) => ({
-               slots: updatedSlots,
-               score: score + 100,
-               coins: coins + 50,
-               goalCollected: progress.goalCollected,
-               levelProgress: progress.levelProgress,
-               isWon: progress.isWon,
                mergeStates: {
                  ...state.mergeStates,
-                 [index]: { phase: 'reveal', count: nextVal ? 2 : 0 }
+                 [index]: { phase: 'collapse', count: topSeq.length }
                }
              }));
- 
-             // Phase 2: Reveal animation runs for 700ms
+
+             // Phase 1: Collapse animation runs for 400ms
              setTimeout(() => {
-               // Clean up mergeState for this slot and unlock input
-               set((state) => {
-                 const newMergeStates = { ...state.mergeStates };
-                 delete newMergeStates[index];
-                 return {
-                   mergeStates: newMergeStates,
-                   isAnimating: false,
-                 };
+               const stateBeforeReveal = get();
+               if (!stateBeforeReveal.mergeStates[index] || stateBeforeReveal.mergeStates[index].phase !== 'collapse') return;
+
+               const currentSlots = stateBeforeReveal.slots;
+               const updatedSlots = currentSlots.map((s, idx) => {
+                 if (idx === index) {
+                   // Replace the merged coins with 2 coins of the next level (or clear if it's max tier)
+                   const underlyingCoins = s.coins.slice(0, s.coins.length - topSeq.length);
+                   const newCoins = nextVal ? [...underlyingCoins, nextVal, nextVal] : underlyingCoins;
+                   return {
+                     ...s,
+                     coins: newCoins,
+                   };
+                 }
+                 return s;
                });
  
-               // Re-check for chain reactions in this slot
-               get().checkMerges(index);
-             }, 700);
-           }, 400);
+               // Recalculate level progress based on goal type & amount
+               const progress = get().updateGoalProgress(updatedSlots);
+ 
+               // Set mergeState to reveal phase and update slots/score
+               set((state) => ({
+                 slots: updatedSlots,
+                 score: state.score + 100,
+                 coins: state.coins + 50,
+                 goalCollected: progress.goalCollected,
+                 levelProgress: progress.levelProgress,
+                 isWon: progress.isWon,
+                 mergeStates: {
+                   ...state.mergeStates,
+                   [index]: { phase: 'reveal', count: nextVal ? 2 : 0 }
+                 }
+               }));
+ 
+               // Phase 2: Reveal animation runs for 700ms
+               setTimeout(() => {
+                 const stateBeforeCleanup = get();
+                 if (!stateBeforeCleanup.mergeStates[index] || stateBeforeCleanup.mergeStates[index].phase !== 'reveal') return;
+ 
+                 // Clean up mergeState for this slot and unlock input
+                 set((state) => {
+                   const newMergeStates = { ...state.mergeStates };
+                   delete newMergeStates[index];
+                   return {
+                     mergeStates: newMergeStates,
+                     isAnimating: false,
+                   };
+                 });
+ 
+                 // Re-check for chain reactions in this slot
+                 get().checkMerges(index);
+               }, 700);
+             }, 400);
+           }, 500);
          } else {
            get().verifyGameOver();
          }

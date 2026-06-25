@@ -52,10 +52,10 @@ export const GameBoard = () => {
         {/* 3x5 Wooden Board */}
         <div className="wood-board w-full py-6 px-4 flex flex-col justify-center relative select-none">
           
-          {/* Staggered Honeycomb Grid Rows */}
-          <div className="flex flex-col w-full relative z-10">
-            {/* Row 0 (slots 0-4) - Offset slightly to the right */}
-            <div className="flex justify-center gap-x-1.5 w-full translate-x-[16px] z-10">
+          {/* Grid Rows aligned vertically */}
+          <div className="flex flex-col gap-y-3 w-full relative z-10">
+            {/* Row 0 (slots 0-4) */}
+            <div className="flex justify-center gap-x-2.5 w-full z-10">
               {slots.slice(0, 5).map((s) => (
                 <div key={s.index} className="w-[18%] max-w-[70px]">
                   <CoinSlot slotIndex={s.index} />
@@ -63,8 +63,8 @@ export const GameBoard = () => {
               ))}
             </div>
 
-            {/* Row 1 (slots 5-9) - Offset slightly to the left, nesting upward */}
-            <div className="flex justify-center gap-x-1.5 w-full -translate-x-[16px] mt-[-22px] z-20">
+            {/* Row 1 (slots 5-9) */}
+            <div className="flex justify-center gap-x-2.5 w-full z-20">
               {slots.slice(5, 10).map((s) => (
                 <div key={s.index} className="w-[18%] max-w-[70px]">
                   <CoinSlot slotIndex={s.index} />
@@ -72,8 +72,8 @@ export const GameBoard = () => {
               ))}
             </div>
 
-            {/* Row 2 (slots 10-14) - Offset slightly to the right, nesting upward */}
-            <div className="flex justify-center gap-x-1.5 w-full translate-x-[16px] mt-[-22px] z-30">
+            {/* Row 2 (slots 10-14) */}
+            <div className="flex justify-center gap-x-2.5 w-full z-30">
               {slots.slice(10, 15).map((s) => (
                 <div key={s.index} className="w-[18%] max-w-[70px]">
                   <CoinSlot slotIndex={s.index} />
