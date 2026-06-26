@@ -255,9 +255,12 @@ export const useGameStore = create(
 
       // Unlocks a slot
       unlockSlot: (index) => {
-        const { slots, coins } = get();
+        const { slots, coins, currentLevel } = get();
         const slot = slots[index];
         if (slot.status === 'unlocked') return;
+
+        // On level 1, only the free slot (slot 5) can be unlocked
+        if (currentLevel === 1 && index !== 5) return;
 
         let updatedSlots = [...slots];
         let cost = slot.unlockCost;

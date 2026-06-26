@@ -134,6 +134,7 @@ export const CoinSlot = ({ slotIndex }) => {
   if (slot.status === 'locked') {
     const isFree = slot.unlockType === 'free';
     const isTimer = slot.unlockType === 'timer';
+    const isUnavailable = slot.unlockType === 'unavailable';
     
     let cardClass = "slot-card slot-card-wood";
     if (isFree) cardClass = "slot-card slot-card-green";
@@ -141,8 +142,12 @@ export const CoinSlot = ({ slotIndex }) => {
 
     return (
       <div
-        onClick={() => selectSlot(slotIndex)}
-        className={`relative aspect-[1/1.5] w-full min-h-[90px] cursor-pointer ${cardClass} hover:scale-[1.03] active:scale-[0.98] transition-all duration-200 flex flex-col justify-center items-center p-2`}
+        onClick={isUnavailable ? undefined : () => selectSlot(slotIndex)}
+        className={`relative aspect-[1/1.5] w-full min-h-[90px] ${
+          isUnavailable 
+            ? 'opacity-40 cursor-not-allowed filter grayscale pointer-events-none' 
+            : 'cursor-pointer hover:scale-[1.03] active:scale-[0.98]'
+        } ${cardClass} transition-all duration-200 flex flex-col justify-center items-center p-2`}
       >
         {/* Card gloss sheen */}
         <div className="absolute inset-1 rounded-[14px] border border-white/10 bg-gradient-to-tr from-transparent via-white/5 to-transparent pointer-events-none z-10" />
