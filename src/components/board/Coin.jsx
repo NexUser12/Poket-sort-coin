@@ -16,9 +16,6 @@ export const Coin = ({ value, isLifted, isRevealing, showNumber }) => {
         ${isRevealing ? 'coin-reveal' : ''} 
         ${shouldBounce ? 'coin-placement-bounce' : ''}`}
     >
-      {/* Specular sheen flash overlay when merging */}
-      {isRevealing && <div className="merge-flash-specular"></div>}
-
       {/* Cylindrical barrel (visible side thickness with ridges) */}
       <div className={`coin-3d-barrel coin-barrel-${value}`}></div>
       {/* Bottom ellipse edge (depth drop-shadow) */}

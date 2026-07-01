@@ -2,6 +2,19 @@ import React from 'react';
 import { useGameStore } from '../../store/useGameStore';
 import Coin from './Coin';
 
+const COIN_VFX_COLORS = {
+  1: ['#ff8e6e', '#ff5722', '#ffd8cc'], // Copper/Bronze
+  2: ['#ffffff', '#eceff1', '#90a4ae'], // Silver
+  3: ['#ffd54f', '#ffb300', '#fffde7'], // Gold
+  4: ['#00e5ff', '#00bcd4', '#e0f7fa'], // Cyan
+  5: ['#40c4ff', '#0091ea', '#d0f0ff'], // Blue
+  6: ['#ff1744', '#d50000', '#ffcdd2'], // Red
+  8: ['#00e676', '#00c853', '#e8f5e9'], // Green
+  10: ['#d500f9', '#aa00ff', '#f3e5f5'], // Purple
+  13: ['#ff4081', '#f50057', '#f8bbd0'], // Pink
+  15: ['#ffea00', '#ffd600', '#ffffff'], // Legendary
+};
+
 const HandPointer = () => (
   <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 pointer-events-none z-50 animate-bounce">
     <svg width="56" height="56" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -81,20 +94,55 @@ export const CoinSlot = ({ slotIndex }) => {
   const isMerging = isMergingReveal;
   const totalCoins = slot.coins.length;
 
-  // Generate particles if merging
-  const particles = React.useMemo(() => {
-    if (!isMerging) return [];
-    return Array.from({ length: 10 }).map((_, idx) => {
-      const angle = (idx / 10) * 2 * Math.PI + (Math.random() - 0.5) * 0.3;
-      const distance = 40 + Math.random() * 45; // 40px to 85px
+  const newCoinVal = slot.coins.length > 0 ? slot.coins[slot.coins.length - 1] : 3;
+
+  // Generate explosion details if merging
+  const explosionVFX = React.useMemo(() => {
+    if (!isMergingReveal) return null;
+
+    const colors = COIN_VFX_COLORS[newCoinVal] || ['#ffd54f', '#ffb300', '#ffffff'];
+
+    // Generate Sparks (colored circles)
+    const sparks = Array.from({ length: 14 }).map((_, idx) => {
+      const angle = (idx / 14) * 2 * Math.PI + (Math.random() - 0.5) * 0.25;
+      const distance = 35 + Math.random() * 60; // 35px to 95px
+      const size = 5 + Math.random() * 6; // 5px to 11px
       return {
+        id: `spark-${idx}`,
+        tx: `${Math.cos(angle) * distance}px`,
+        ty: `${Math.sin(angle) * distance}px`,
+        delay: `${Math.random() * 0.12}s`,
+        duration: `${0.45 + Math.random() * 0.25}s`,
+        size: `${size}px`,
+        color: colors[Math.floor(Math.random() * colors.length)],
+      };
+    });
+
+    // Generate Stars (text characters like ⭐, ✨, ✦)
+    const starSymbols = Array.from({ length: 10 }).map((_, idx) => {
+      const angle = ((idx + 0.5) / 10) * 2 * Math.PI + (Math.random() - 0.5) * 0.3;
+      const distance = 40 + Math.random() * 55; // 40px to 95px
+      const size = 10 + Math.random() * 8; // 10px to 18px
+      const char = ['⭐', '✨', '✦'][Math.floor(Math.random() * 3)];
+      return {
+        id: `star-${idx}`,
         tx: `${Math.cos(angle) * distance}px`,
         ty: `${Math.sin(angle) * distance}px`,
         delay: `${Math.random() * 0.1}s`,
-        char: Math.random() > 0.5 ? '⭐' : '✨',
+        duration: `${0.55 + Math.random() * 0.25}s`,
+        size: `${size}px`,
+        char,
+        color: colors[Math.floor(Math.random() * colors.length)],
       };
     });
-  }, [isMerging]);
+
+    return {
+      sparks,
+      starSymbols,
+      primaryColor: colors[0],
+      glowColor: colors[1] || colors[0],
+    };
+  }, [isMergingReveal, newCoinVal]);
 
   // Identify top sequence of identical coins to lift them when selected
   const getTopSequenceLength = (coins) => {
@@ -199,24 +247,68 @@ export const CoinSlot = ({ slotIndex }) => {
       {/* Wipe Sweep VFX */}
       {showUnlockWipe && <div className="unlock-wipe-effect"></div>}
 
-      {/* Spark particles on merge */}
-      {isMerging && particles.map((p, idx) => (
-        <span
-          key={idx}
-          className="spark-particle text-yellow-400"
-          style={{
-            '--tx': p.tx,
-            '--ty': p.ty,
-            left: '50%',
-            top: '45%',
-            marginLeft: '-7px',
-            marginTop: '-7px',
-            animationDelay: p.delay,
-          }}
-        >
-          {p.char}
-        </span>
-      ))}
+      {/* Rich explosion VFX on merge */}
+      {isMergingReveal && explosionVFX && (
+        <div className="absolute inset-0 pointer-events-none z-40 overflow-visible">
+          {/* Central Glow Flash */}
+          <div 
+            className="explosion-glow"
+            style={{
+              '--glow-color': explosionVFX.glowColor,
+              left: '50%',
+              top: '45%',
+            }}
+          />
+
+          {/* Expanding Shockwave Ring */}
+          <div 
+            className="explosion-shockwave"
+            style={{
+              '--shockwave-color': explosionVFX.primaryColor,
+              left: '50%',
+              top: '45%',
+            }}
+          />
+
+          {/* Spark circle particles */}
+          {explosionVFX.sparks.map((s) => (
+            <div
+              key={s.id}
+              className="vfx-particle-spark"
+              style={{
+                '--tx': s.tx,
+                '--ty': s.ty,
+                '--color': s.color,
+                '--size': s.size,
+                left: '50%',
+                top: '45%',
+                animationDelay: s.delay,
+                animationDuration: s.duration,
+              }}
+            />
+          ))}
+
+          {/* Star symbol particles */}
+          {explosionVFX.starSymbols.map((st) => (
+            <span
+              key={st.id}
+              className="vfx-particle-star"
+              style={{
+                '--tx': st.tx,
+                '--ty': st.ty,
+                color: st.color,
+                fontSize: st.size,
+                left: '50%',
+                top: '45%',
+                animationDelay: st.delay,
+                animationDuration: st.duration,
+              }}
+            >
+              {st.char}
+            </span>
+          ))}
+        </div>
+      )}
 
 
 
