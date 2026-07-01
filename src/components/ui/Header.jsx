@@ -7,6 +7,7 @@ export const Header = () => {
   const goalAmount = useGameStore((state) => state.goalAmount) || 5;
   const goalCollected = useGameStore((state) => state.goalCollected) || 0;
   const currentLevel = useGameStore((state) => state.currentLevel) || 1;
+  const coins = useGameStore((state) => state.coins) || 0;
 
   const [animate, setAnimate] = useState(false);
   const isFirstMount = useRef(true);
@@ -29,6 +30,14 @@ export const Header = () => {
         <div className="flex items-center h-12 bg-gradient-to-b from-[#2a1307] to-[#140803] border-3 border-amber-800 px-4 rounded-2xl shadow-[0_6px_12px_rgba(0,0,0,0.6)] select-none">
           <span className="text-sm font-black text-amber-300 uppercase tracking-widest text-stroke-brown">
             LEVEL {currentLevel}
+          </span>
+        </div>
+
+        {/* Center: Coins Badge */}
+        <div className="flex items-center h-12 bg-gradient-to-b from-[#2a1307] to-[#140803] border-3 border-amber-800 px-3.5 rounded-2xl shadow-[0_6px_12px_rgba(0,0,0,0.6)] gap-1.5 select-none">
+          <span className="text-xl filter drop-shadow-md">🪙</span>
+          <span className="text-sm font-black text-yellow-400 text-stroke-brown">
+            {coins}
           </span>
         </div>
 

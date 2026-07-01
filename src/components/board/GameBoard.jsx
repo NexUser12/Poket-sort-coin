@@ -15,6 +15,8 @@ export const GameBoard = () => {
   const undoStack = useGameStore((state) => state.undoStack) || [];
   const dealCoins = useGameStore((state) => state.dealCoins);
   const isAnimating = useGameStore((state) => state.isAnimating);
+  const activeMagnetEffect = useGameStore((state) => state.activeMagnetEffect);
+  const activeBooster = useGameStore((state) => state.activeBooster);
 
   const canDeal = slots.some((s) => s.status === 'unlocked' && s.coins.length < 10) && !isWon && !isGameOver && !isAnimating;
 
@@ -46,6 +48,19 @@ export const GameBoard = () => {
 
   return (
     <main className="w-full max-w-md mx-auto px-4 py-4 flex-1 flex flex-col justify-center items-center gap-6 relative">
+      {/* Magnet Effect Overlay */}
+      {activeMagnetEffect && (
+        <div className="absolute inset-0 bg-black/40 rounded-3xl z-50 flex items-center justify-center pointer-events-none">
+          <span className="magnet-overlay-effect">🧲</span>
+        </div>
+      )}
+
+      {/* Hammer Active Banner */}
+      {activeBooster === 'hammer' && (
+        <div className="absolute top-[48%] left-0 right-0 bg-red-950/90 border-y-3 border-red-700/80 text-white font-black text-center py-2.5 z-40 text-xs uppercase tracking-widest shadow-2xl animate-pulse">
+          🔨 Hammer Active! Tap a stack to smash
+        </div>
+      )}
       
       {/* 3D Perspective Container for Camera Angle */}
       <div className="perspective-container">
@@ -90,6 +105,22 @@ export const GameBoard = () => {
           )}
         </div>
       </div>
+
+      {/* Extra Pocket slots if purchased */}
+      {slots.some((s) => s.isExtraSlot && (s.expiryTimer > 0 || s.coins.length > 0)) && (
+        <div className="w-full max-w-[280px] flex flex-col items-center gap-1.5 p-3 bg-[#180904]/90 border-4 border-[#2d1102] rounded-2xl shadow-[inset_0_4px_10px_rgba(0,0,0,0.8),0_4px_15px_rgba(0,0,0,0.5)] -mt-2 z-20 animate-fade-in">
+          <span className="text-[10px] font-black text-yellow-500 uppercase tracking-widest text-stroke-brown">
+            💼 EXTRA POCKETS
+          </span>
+          <div className="flex gap-4 justify-center w-full">
+            {slots.filter((s) => s.isExtraSlot && (s.expiryTimer > 0 || s.coins.length > 0)).map((s) => (
+              <div key={s.index} className="w-[20%] max-w-[70px]">
+                <CoinSlot slotIndex={s.index} />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Deal Button */}
       <div className="w-full flex justify-center -mt-2 z-20">

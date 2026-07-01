@@ -51,8 +51,10 @@ export const useGameStore = create(
       isGameOver: false,
       undoStack: [],
       isAnimating: false,
-      mergeStates: {}, // key: slotIndex, value: { phase: 'collapse' | 'reveal', count: number }
+      mergeStates: {}, // key: slotIndex, value: { phase: 'collapse' | 'reveal' | 'smash', count: number }
       lastClaimedDate: null, // Date string (e.g. "Mon Jun 22 2026") or null
+      activeBooster: null, // 'hammer' | null
+      activeMagnetEffect: false,
 
       // Level goal state
       goalType: 4,
@@ -73,7 +75,7 @@ export const useGameStore = create(
 
       // Initialize level
       initLevel: (level) => {
-        // Create 15 slots
+        // Create 15 slots (0-14).
         const newSlots = Array.from({ length: 15 }, (_, index) => {
           let status = 'locked';
           let unlockType = 'coins';
@@ -242,6 +244,8 @@ export const useGameStore = create(
           undoStack: [],
           isAnimating: false,
           mergeStates: {},
+          activeBooster: null,
+          activeMagnetEffect: false,
         });
       },
 
@@ -300,6 +304,11 @@ export const useGameStore = create(
               return { ...slot, unlockTimer: newTimer };
             }
           }
+          if (slot.isExtraSlot && slot.expiryTimer > 0) {
+            changed = true;
+            const newTimer = Math.max(0, slot.expiryTimer - 1);
+            return { ...slot, expiryTimer: newTimer };
+          }
           return slot;
         });
 
@@ -310,13 +319,19 @@ export const useGameStore = create(
 
       // Selecting and moving coins
       selectSlot: (index) => {
-        const { slots, selectedSlot, isWon, isGameOver, isAnimating } = get();
+        const { slots, selectedSlot, isWon, isGameOver, isAnimating, activeBooster } = get();
         if (isWon || isGameOver || isAnimating) return;
 
         const slot = slots[index];
 
+        // If Hammer booster is active, trigger hammer smash
+        if (activeBooster === 'hammer') {
+          get().useHammer(index);
+          return;
+        }
+
         // 1. If slot is locked, handle unlocking
-        if (slot.status === 'locked') {
+        if (slot.status === 'locked' || slot.status === 'locked-extra') {
           get().unlockSlot(index);
           return;
         }
@@ -350,7 +365,8 @@ export const useGameStore = create(
         // Check transfer validity:
         // - Target slot must be empty OR top coin matches the moving coin value
         const targetTopVal = targetSlot.coins.length > 0 ? targetSlot.coins[targetSlot.coins.length - 1] : null;
-        const canMove = targetSlot.coins.length === 0 || targetTopVal === coinVal;
+        const isTargetExpiredExtra = targetSlot.isExtraSlot && targetSlot.expiryTimer === 0;
+        const canMove = (targetSlot.coins.length === 0 || targetTopVal === coinVal) && !isTargetExpiredExtra;
         
         let fits = false;
         if (canMove) {
@@ -358,7 +374,12 @@ export const useGameStore = create(
           const targetTopSeqLength = targetTopSeq.length;
           const totalMergingValCount = targetTopSeqLength + movingCoins.length;
 
-          if (targetTopSeqLength > 0 && totalMergingValCount >= 10) {
+          // They will merge only if the target slot is pure (contains only the moving coin type)
+          // and the total count reaches 10 or more.
+          const isPureTarget = targetSlot.coins.length === targetTopSeqLength;
+          const willMerge = isPureTarget && totalMergingValCount >= 10;
+
+          if (willMerge) {
             // They will merge! Calculate final slot size:
             // (coins in slot) - (those being merged) + (2 new upgraded coins)
             const chainIdx = MERGE_CHAIN.indexOf(coinVal);
@@ -408,14 +429,16 @@ export const useGameStore = create(
         }
       },
 
-       // Check if 10 or more coins of the same value are grouped at the top of a slot
+       // Check if 10 or more coins of the same value are grouped in a pure slot
        checkMerges: (index) => {
          const { slots, score, coins } = get();
          const slot = slots[index];
+         if (!slot) return;
  
-         const topSeq = getTopSequence(slot.coins);
-         if (topSeq.length >= 10) {
-           const coinVal = topSeq[0];
+         const isMergeable = slot.coins.length >= 10 && slot.coins.every((c) => c === slot.coins[0]);
+         if (isMergeable) {
+           const coinVal = slot.coins[0];
+           const topSeqLength = slot.coins.length;
            // Find next value in the chain
            const chainIdx = MERGE_CHAIN.indexOf(coinVal);
            const nextVal = chainIdx !== -1 && chainIdx < MERGE_CHAIN.length - 1 ? MERGE_CHAIN[chainIdx + 1] : null;
@@ -425,7 +448,7 @@ export const useGameStore = create(
              isAnimating: true,
              mergeStates: {
                ...state.mergeStates,
-               [index]: { phase: 'delay', count: topSeq.length }
+               [index]: { phase: 'delay', count: topSeqLength }
              }
            }));
            
@@ -438,7 +461,7 @@ export const useGameStore = create(
              set((state) => ({
                mergeStates: {
                  ...state.mergeStates,
-                 [index]: { phase: 'collapse', count: topSeq.length }
+                 [index]: { phase: 'collapse', count: topSeqLength }
                }
              }));
 
@@ -451,7 +474,7 @@ export const useGameStore = create(
                const updatedSlots = currentSlots.map((s, idx) => {
                  if (idx === index) {
                    // Replace the merged coins with 2 coins of the next level (or clear if it's max tier)
-                   const underlyingCoins = s.coins.slice(0, s.coins.length - topSeq.length);
+                   const underlyingCoins = s.coins.slice(0, s.coins.length - topSeqLength);
                    const newCoins = nextVal ? [...underlyingCoins, nextVal, nextVal] : underlyingCoins;
                    return {
                      ...s,
@@ -538,10 +561,10 @@ export const useGameStore = create(
         }
       },
 
-      // Booster 1: Undo (Cost: 20 coins)
+      // Booster 1: Undo (Cost: 0 coins / Free)
       useUndo: () => {
-        const { coins, undoStack } = get();
-        if (coins < 20 || undoStack.length === 0) return;
+        const { undoStack } = get();
+        if (undoStack.length === 0) return;
 
         const previousSlots = undoStack[undoStack.length - 1];
         const newUndoStack = undoStack.slice(0, -1);
@@ -549,7 +572,6 @@ export const useGameStore = create(
         const progress = get().updateGoalProgress(previousSlots);
 
         set({
-          coins: coins - 20,
           slots: previousSlots,
           undoStack: newUndoStack,
           selectedSlot: null,
@@ -565,6 +587,10 @@ export const useGameStore = create(
         const { coins, slots } = get();
         if (coins < 30) return;
 
+        // Capture previous slot states for undo
+        const previousSlots = slots.map((s) => ({ ...s, coins: [...s.coins] }));
+        const newUndoStack = [...get().undoStack, previousSlots];
+
         // Collect all coins from unlocked slots
         const allCoins = [];
         slots.forEach((s) => {
@@ -578,8 +604,8 @@ export const useGameStore = create(
         // Shuffle the collected coins
         let shuffledCoins = shuffleArray(allCoins);
 
-        // Distribute them back into the unlocked slots in roughly even stacks
-        const unlockedSlots = slots.filter((s) => s.status === 'unlocked');
+        // Distribute them back into the unlocked slots
+        const mainUnlockedSlots = slots.filter((s) => s.status === 'unlocked');
         const updatedSlots = slots.map((s) => {
           if (s.status === 'unlocked') {
             return { ...s, coins: [] };
@@ -588,12 +614,21 @@ export const useGameStore = create(
         });
 
         let coinIdx = 0;
-        // Distribute in rounds
-        while (coinIdx < shuffledCoins.length) {
-          unlockedSlots.forEach((us) => {
-            const s = updatedSlots[us.index];
-            if (coinIdx < shuffledCoins.length && s.coins.length < 8) {
-              s.coins.push(shuffledCoins[coinIdx]);
+        // Distribute in rounds up to 8 coins per slot first to keep stacks relatively even
+        for (let round = 0; round < 8; round++) {
+          mainUnlockedSlots.forEach((mus) => {
+            if (coinIdx < shuffledCoins.length) {
+              updatedSlots[mus.index].coins.push(shuffledCoins[coinIdx]);
+              coinIdx++;
+            }
+          });
+        }
+
+        // If there are still coins left, fill main unlocked slots up to 10
+        if (coinIdx < shuffledCoins.length) {
+          mainUnlockedSlots.forEach((mus) => {
+            while (coinIdx < shuffledCoins.length && updatedSlots[mus.index].coins.length < 10) {
+              updatedSlots[mus.index].coins.push(shuffledCoins[coinIdx]);
               coinIdx++;
             }
           });
@@ -605,48 +640,221 @@ export const useGameStore = create(
           coins: coins - 30,
           slots: updatedSlots,
           selectedSlot: null,
-          undoStack: [], // Clear undo since shuffle is irreversible
-          isGameOver: false,
-          goalCollected: progress.goalCollected,
-          levelProgress: progress.levelProgress,
-          isWon: progress.isWon,
-        });
-      },
-
-      // Booster 3: Clear Stack (Cost: 40 coins)
-      // Removes the top group of matching coins from the selected slot (or if none selected, does nothing)
-      useClearSlot: () => {
-        const { coins, selectedSlot, slots } = get();
-        if (coins < 40 || selectedSlot === null) return;
-
-        const slot = slots[selectedSlot];
-        if (slot.coins.length === 0) return;
-
-        const topVal = slot.coins[slot.coins.length - 1];
-        const updatedCoins = slot.coins.filter((v) => v !== topVal);
-
-        const updatedSlots = slots.map((s, idx) => {
-          if (idx === selectedSlot) {
-            return { ...s, coins: updatedCoins };
-          }
-          return s;
-        });
-
-        // Capture state for undo before applying
-        const previousSlots = slots.map((s) => ({ ...s, coins: [...s.coins] }));
-        const newUndoStack = [...get().undoStack, previousSlots];
-
-        const progress = get().updateGoalProgress(updatedSlots);
-
-        set({
-          coins: coins - 40,
-          slots: updatedSlots,
-          selectedSlot: null,
           undoStack: newUndoStack,
           isGameOver: false,
           goalCollected: progress.goalCollected,
           levelProgress: progress.levelProgress,
           isWon: progress.isWon,
+        });
+
+        // Trigger merges if any slot is now full with 10 identical coins in a pure slot
+        updatedSlots.forEach((s) => {
+          if (s.status === 'unlocked') {
+            const isMergeable = s.coins.length >= 10 && s.coins.every((c) => c === s.coins[0]);
+            if (isMergeable) {
+              get().checkMerges(s.index);
+            }
+          }
+        });
+      },
+
+      // Booster: Hammer Mode (Cost: 40 coins)
+      activateHammer: () => {
+        const { coins, activeBooster, isWon, isGameOver, isAnimating } = get();
+        if (isWon || isGameOver || isAnimating) return;
+        if (activeBooster === 'hammer') {
+          set({ activeBooster: null });
+        } else {
+          if (coins >= 40) {
+            set({ activeBooster: 'hammer', selectedSlot: null });
+          }
+        }
+      },
+
+      useHammer: (index) => {
+        const { coins, slots, activeBooster } = get();
+        if (activeBooster !== 'hammer') return;
+
+        const slot = slots[index];
+        if (!slot || slot.status !== 'unlocked' || slot.coins.length === 0) {
+          set({ activeBooster: null });
+          return;
+        }
+
+        const previousSlots = slots.map((s) => ({ ...s, coins: [...s.coins] }));
+        const newUndoStack = [...get().undoStack, previousSlots];
+
+        set((state) => ({
+          coins: state.coins - 40,
+          activeBooster: null,
+          isAnimating: true,
+          selectedSlot: null,
+          mergeStates: {
+            ...state.mergeStates,
+            [index]: { phase: 'smash' }
+          }
+        }));
+
+        setTimeout(() => {
+          const stateAfterSmash = get();
+          if (!stateAfterSmash.mergeStates[index] || stateAfterSmash.mergeStates[index].phase !== 'smash') return;
+
+          const updatedSlots = stateAfterSmash.slots.map((s, idx) => {
+            if (idx === index) {
+              return { ...s, coins: [] };
+            }
+            return s;
+          });
+
+          const progress = get().updateGoalProgress(updatedSlots);
+
+          set((state) => {
+            const newMergeStates = { ...state.mergeStates };
+            delete newMergeStates[index];
+            return {
+              slots: updatedSlots,
+              undoStack: newUndoStack,
+              isAnimating: false,
+              isGameOver: false,
+              goalCollected: progress.goalCollected,
+              levelProgress: progress.levelProgress,
+              isWon: progress.isWon,
+              mergeStates: newMergeStates,
+            };
+          });
+
+          get().verifyGameOver();
+        }, 500);
+      },
+
+      // Booster: Magnet / Sort (Cost: 50 coins)
+      useMagnet: () => {
+        const { coins, slots, isWon, isGameOver, isAnimating } = get();
+        if (coins < 50 || isWon || isGameOver || isAnimating) return;
+
+        const previousSlots = slots.map((s) => ({ ...s, coins: [...s.coins] }));
+        const newUndoStack = [...get().undoStack, previousSlots];
+
+        const allCoins = [];
+        slots.forEach((s) => {
+          if (s.status === 'unlocked') {
+            allCoins.push(...s.coins);
+          }
+        });
+
+        if (allCoins.length === 0) return;
+
+        const counts = {};
+        allCoins.forEach((c) => {
+          counts[c] = (counts[c] || 0) + 1;
+        });
+
+        const sortedVals = Object.keys(counts).map(Number).sort((a, b) => a - b);
+        const unlockedSlots = slots.filter((s) => s.status === 'unlocked');
+        const updatedSlots = slots.map((s) => {
+          if (s.status === 'unlocked') {
+            return { ...s, coins: [] };
+          }
+          return s;
+        });
+
+        let slotIdx = 0;
+        sortedVals.forEach((val) => {
+          let count = counts[val];
+          while (count > 0 && slotIdx < unlockedSlots.length) {
+            const currentSlotIndex = unlockedSlots[slotIdx].index;
+            const slotCoins = updatedSlots[currentSlotIndex].coins;
+            
+            const fillCount = Math.min(count, 10 - slotCoins.length);
+            for (let i = 0; i < fillCount; i++) {
+              slotCoins.push(val);
+            }
+            count -= fillCount;
+
+            if (slotCoins.length === 10 || count === 0) {
+              slotIdx++;
+            }
+          }
+        });
+
+        set({
+          coins: coins - 50,
+          activeMagnetEffect: true,
+          isAnimating: true,
+          selectedSlot: null,
+        });
+
+        setTimeout(() => {
+          const stateAfterMagnet = get();
+          if (!stateAfterMagnet.activeMagnetEffect) return;
+
+          const progress = stateAfterMagnet.updateGoalProgress(updatedSlots);
+
+          set({
+            slots: updatedSlots,
+            activeMagnetEffect: false,
+            isAnimating: false,
+            undoStack: newUndoStack,
+            isGameOver: false,
+            goalCollected: progress.goalCollected,
+            levelProgress: progress.levelProgress,
+            isWon: progress.isWon,
+          });
+
+          updatedSlots.forEach((s) => {
+            if (s.status === 'unlocked') {
+              const isMergeable = s.coins.length >= 10 && s.coins.every((c) => c === s.coins[0]);
+              if (isMergeable) {
+                get().checkMerges(s.index);
+              }
+            }
+          });
+        }, 700);
+      },
+
+      // Booster: Extra Slot / Pocket (Cost: 50 coins)
+      useExtraSlot: () => {
+        const { coins, slots, isWon, isGameOver, isAnimating } = get();
+        if (coins < 50 || isWon || isGameOver || isAnimating) return;
+
+        const extraSlotsCount = slots.filter((s) => s.isExtraSlot && (s.expiryTimer > 0 || s.coins.length > 0)).length;
+        if (extraSlotsCount >= 2) return;
+
+        const previousSlots = slots.map((s) => ({ ...s, coins: [...s.coins] }));
+        const newUndoStack = [...get().undoStack, previousSlots];
+
+        const reuseIdx = slots.findIndex((s) => s.isExtraSlot && s.expiryTimer === 0 && s.coins.length === 0);
+        let updatedSlots;
+        if (reuseIdx !== -1) {
+          updatedSlots = [...slots];
+          updatedSlots[reuseIdx] = {
+            ...slots[reuseIdx],
+            expiryTimer: 60,
+            coins: [],
+          };
+        } else {
+          const nextIndex = slots.length;
+          const newSlot = {
+            id: `slot-${nextIndex}`,
+            index: nextIndex,
+            status: 'unlocked',
+            unlockType: 'none',
+            unlockCost: 0,
+            unlockTimer: 0,
+            timerStarted: false,
+            coins: [],
+            isExtraSlot: true,
+            expiryTimer: 60,
+          };
+          updatedSlots = [...slots, newSlot];
+        }
+
+        set({
+          coins: coins - 50,
+          slots: updatedSlots,
+          undoStack: newUndoStack,
+          selectedSlot: null,
+          isGameOver: false,
         });
       },
 
@@ -711,11 +919,11 @@ export const useGameStore = create(
             isWon: progress.isWon,
           });
 
-          // Check if any slot has 10 or more identical coins at the top to trigger a merge
+          // Check if any slot has 10 or more identical coins in a pure slot to trigger a merge
           updatedSlots.forEach((s) => {
             if (s.status === 'unlocked') {
-              const topSeq = getTopSequence(s.coins);
-              if (topSeq.length >= 10) {
+              const isMergeable = s.coins.length >= 10 && s.coins.every((c) => c === s.coins[0]);
+              if (isMergeable) {
                 get().checkMerges(s.index);
               }
             }
@@ -735,7 +943,7 @@ export const useGameStore = create(
       }
     }),
     {
-      name: 'pocket-sort-coin-save-v5',
+      name: 'pocket-sort-coin-save-v7',
     }
   )
 );

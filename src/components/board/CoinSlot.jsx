@@ -91,6 +91,7 @@ export const CoinSlot = ({ slotIndex }) => {
   const mergeState = mergeStates[slotIndex];
   const isMergingCollapse = mergeState?.phase === 'collapse';
   const isMergingReveal = mergeState?.phase === 'reveal';
+  const isSmashing = mergeState?.phase === 'smash';
   const isMerging = isMergingReveal;
   const totalCoins = slot.coins.length;
 
@@ -179,19 +180,21 @@ export const CoinSlot = ({ slotIndex }) => {
   }
 
   // Render Locked Slot Overlay
-  if (slot.status === 'locked') {
+  if (slot.status === 'locked' || slot.status === 'locked-extra') {
     const isFree = slot.unlockType === 'free';
     const isTimer = slot.unlockType === 'timer';
     const isUnavailable = slot.unlockType === 'unavailable';
+    const isExtra = slot.status === 'locked-extra';
     
     let cardClass = "slot-card slot-card-wood";
     if (isFree) cardClass = "slot-card slot-card-green";
     else if (isTimer) cardClass = "slot-card slot-card-orange";
+    else if (isExtra) cardClass = "slot-card border-2 border-dashed border-yellow-500/40 bg-black/40 shadow-inner";
 
     return (
       <div
         onClick={isUnavailable ? undefined : () => selectSlot(slotIndex)}
-        className={`relative aspect-[1/1.5] w-full min-h-[90px] ${
+        className={`relative aspect-[1/2.4] w-full min-h-[140px] ${ // Matches unlocked slot dimensions
           isUnavailable 
             ? 'opacity-40 cursor-not-allowed filter grayscale pointer-events-none' 
             : 'cursor-pointer hover:scale-[1.03] active:scale-[0.98]'
@@ -200,26 +203,26 @@ export const CoinSlot = ({ slotIndex }) => {
         {/* Card gloss sheen */}
         <div className="absolute inset-1 rounded-[14px] border border-white/10 bg-gradient-to-tr from-transparent via-white/5 to-transparent pointer-events-none z-10" />
 
-        <div className="flex flex-col justify-center items-center gap-1.5 z-20">
+        <div className="flex flex-col justify-center items-center gap-2.5 z-20">
           {/* Padlock Icon Badge */}
-          <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] bg-black/20 border border-white/10 text-yellow-400 filter drop-shadow-[0_1px_1px_rgba(255,255,255,0.2)]">
-            {isTimer ? '🕒' : '🔒'}
+          <div className="w-10 h-10 rounded-full flex items-center justify-center text-base shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] bg-black/20 border border-white/10 text-yellow-400 filter drop-shadow-[0_1px_1px_rgba(255,255,255,0.2)]">
+            {isTimer ? '🕒' : isExtra ? '➕' : '🔒'}
           </div>
           
           {/* Specific lock information */}
           {slot.unlockType === 'free' && (
-            <span className="text-[10px] font-black tracking-wider text-white text-stroke-brown mt-0.5 animate-pulse">
+            <span className="text-[11px] font-black tracking-widest text-white text-stroke-brown mt-0.5 animate-pulse">
               FREE
             </span>
           )}
 
           {slot.unlockType === 'timer' && (
-            <div className="flex flex-col items-center gap-0">
-              <span className="text-[10px] font-black tracking-wider text-white text-stroke-brown mt-0.5">
+            <div className="flex flex-col items-center gap-0.5">
+              <span className="text-[11px] font-black tracking-widest text-white text-stroke-brown mt-0.5">
                 {slot.timerStarted ? `${slot.unlockTimer}s` : '60 Sec'}
               </span>
               {!slot.timerStarted && (
-                <span className="text-[7px] text-white/80 font-bold uppercase tracking-wider scale-90">
+                <span className="text-[7.5px] text-white/80 font-black uppercase tracking-wider scale-95">
                   Tap to Start
                 </span>
               )}
@@ -227,7 +230,7 @@ export const CoinSlot = ({ slotIndex }) => {
           )}
 
           {!isFree && !isTimer && slot.unlockType !== 'unavailable' && (
-            <span className="text-[9px] font-black tracking-wider text-yellow-300 text-stroke-brown mt-0.5 flex items-center gap-0.5">
+            <span className="text-[10px] font-black tracking-wider text-yellow-300 text-stroke-brown mt-0.5 flex items-center gap-0.5">
               🪙 {slot.unlockCost}
             </span>
           )}
@@ -238,14 +241,33 @@ export const CoinSlot = ({ slotIndex }) => {
   }
 
   // Render Unlocked Slot
+  const isExpired = slot.isExtraSlot && slot.expiryTimer === 0;
+
   return (
     <div
       onClick={() => selectSlot(slotIndex)}
       className={`relative aspect-[1/2.4] w-full min-h-[140px] cursor-pointer slot-trough flex flex-col justify-between items-center py-2 transition-all duration-200
-        ${isSelected ? 'slot-trough-selected scale-[1.02]' : 'hover:scale-[1.01]'}`}
+        ${isSelected ? 'slot-trough-selected scale-[1.02]' : 'hover:scale-[1.01]'}
+        ${isExpired ? 'slot-trough-expired' : ''}
+        ${isSmashing ? 'slot-shaking' : ''}`}
     >
+      {/* Timer Badge for Extra Slot */}
+      {slot.isExtraSlot && slot.expiryTimer > 0 && (
+        <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-amber-950 border border-yellow-500 rounded-full px-2 py-0.5 text-[8.5px] font-black text-yellow-400 whitespace-nowrap shadow-md z-30 animate-pulse flex items-center gap-0.5">
+          🕒 {slot.expiryTimer}s
+        </div>
+      )}
+      {slot.isExtraSlot && slot.expiryTimer === 0 && slot.coins.length > 0 && (
+        <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-red-950 border border-red-500 rounded-full px-2 py-0.5 text-[8.5px] font-black text-red-400 whitespace-nowrap shadow-md z-30 animate-pulse flex items-center gap-0.5">
+          ⚠️ OUT ONLY
+        </div>
+      )}
+
       {/* Wipe Sweep VFX */}
       {showUnlockWipe && <div className="unlock-wipe-effect"></div>}
+
+      {/* Hammer smash VFX */}
+      {isSmashing && <span className="hammer-animation">🔨</span>}
 
       {/* Rich explosion VFX on merge */}
       {isMergingReveal && explosionVFX && (
@@ -366,7 +388,7 @@ export const CoinSlot = ({ slotIndex }) => {
               <div
                 key={realIdx}
                 style={style}
-                className={isMergingCollapse && isTopSeq ? '' : 'transition-all duration-200'}
+                className={isMergingCollapse && isTopSeq ? '' : `transition-all duration-200 ${isSmashing ? 'coin-shattering' : ''}`}
               >
                 <Coin
                   value={coinVal}
